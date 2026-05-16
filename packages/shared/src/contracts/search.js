@@ -1,0 +1,2 @@
+export const SEARCH_SORT_BYS = ['RELEVANCE', 'CREATED_AT', 'POPULARITY'];
+export const SEARCH_SORT_ORDERS = ['ASC', 'DESC'];

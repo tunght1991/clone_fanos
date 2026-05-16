@@ -1,0 +1,28 @@
+{
+  "name": "@clone-fanos/api",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "express": "^5.2.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "pg": "^8.13.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "dev": "set TS_NODE_TRANSPILE_ONLY=1&& node --loader ts-node/esm src/http/bootstrap.ts",
+    "start": "set TS_NODE_TRANSPILE_ONLY=1&& node --loader ts-node/esm src/http/bootstrap.ts",
+    "migrate": "set TS_NODE_TRANSPILE_ONLY=1&& node --loader ts-node/esm src/db/migrate.ts",
+    "test": "node --test --experimental-transform-types --loader ./test/ts-resolve-loader.mjs src/all.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

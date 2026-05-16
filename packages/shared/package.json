@@ -1,0 +1,11 @@
+{
+  "name": "@clone-fanos/shared",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "call ../../apps/api/node_modules/.bin/tsc.CMD -p tsconfig.json",
+    "lint": "call ../../apps/api/node_modules/.bin/tsc.CMD -p tsconfig.json --noEmit",
+    "test": "node --test --experimental-transform-types --loader ../../apps/api/test/ts-resolve-loader.mjs src/all.test.ts",
+    "typecheck": "call ../../apps/api/node_modules/.bin/tsc.CMD -p tsconfig.json --noEmit"
+  }
+}

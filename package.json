@@ -1,0 +1,20 @@
+{
+  "name": "clone-fanos",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "api:dev": "pnpm --dir apps/api dev",
+    "api:start": "pnpm --dir apps/api start",
+    "api:migrate": "pnpm --dir apps/api migrate",
+    "api:test": "pnpm --dir apps/api test"
+  }
+}
