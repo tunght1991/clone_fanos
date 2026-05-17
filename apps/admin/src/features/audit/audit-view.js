@@ -1,8 +1,5 @@
-import {
-  getAuditActionLabel,
-  getAuditEntityLabel,
-  summarizeAuditTrail,
-} from './audit-data.js';
+import { getAuditActionLabel, getAuditEntityLabel, summarizeAuditTrail } from './audit-data.js';
+import { renderBadge, renderButton, renderEmptyState } from '../../ui/primitives.js';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -24,11 +21,6 @@ function formatDate(value) {
   });
 }
 
-function renderActionBadge(action) {
-  const className = action === 'unpublish' ? 'badge badge-warning' : 'badge badge-success';
-  return `<span class="${className}">${escapeHtml(getAuditActionLabel(action))}</span>`;
-}
-
 function renderEntityTypeOption(type, selectedType) {
   const label = getAuditEntityLabel(type);
   return `<option value="${escapeHtml(type)}" ${type === selectedType ? 'selected' : ''}>${escapeHtml(label)}</option>`;
@@ -39,18 +31,14 @@ function renderTrailRows(entries) {
     .map(
       (entry) => `
         <tr>
-          <td>${renderActionBadge(entry.action)}</td>
+          <td>${renderBadge(getAuditActionLabel(entry.action), entry.action === 'unpublish' ? 'warning' : 'success')}</td>
           <td>
             <div class="content-title">${escapeHtml(entry.entityTitle || entry.entityId)}</div>
             <div class="content-subtitle">${escapeHtml(entry.entityType)} · ${escapeHtml(entry.entityId)}</div>
           </td>
           <td>${escapeHtml(entry.actorRole ?? 'ADMIN')}</td>
           <td>${escapeHtml(entry.actorUserId ?? 'system')}</td>
-          <td>
-            <span class="badge ${entry.payloadJson?.reindexStatus === 'done' ? 'badge-success' : 'badge-warning'}">
-              ${escapeHtml(String(entry.payloadJson?.reindexStatus ?? 'pending'))}
-            </span>
-          </td>
+          <td>${renderBadge(String(entry.payloadJson?.reindexStatus ?? 'pending'), entry.payloadJson?.reindexStatus === 'done' ? 'success' : 'warning')}</td>
           <td>${escapeHtml(formatDate(entry.createdAt))}</td>
         </tr>
       `,
@@ -60,7 +48,7 @@ function renderTrailRows(entries) {
 
 function renderTimeline(entries) {
   if (entries.length === 0) {
-    return '<div class="empty-inline">Audit trail rỗng.</div>';
+    return renderEmptyState('Audit trail is empty', 'No publish or unpublish actions were recorded yet.');
   }
 
   return `
@@ -99,8 +87,8 @@ export function renderAuditTrailView({ state, entityOptions = [] }) {
           <p>Track publish/unpublish actions and inspect the latest status by entity.</p>
         </div>
         <div class="panel-actions">
-          <a class="button button-secondary" href="#/dashboard">Back to dashboard</a>
-          <a class="button button-secondary" href="#/content">Open content</a>
+          ${renderButton({ label: 'Back to dashboard', href: '#/dashboard', variant: 'secondary' })}
+          ${renderButton({ label: 'Open content', href: '#/content', variant: 'secondary' })}
         </div>
       </div>
 
@@ -153,8 +141,12 @@ export function renderAuditTrailView({ state, entityOptions = [] }) {
             <input name="query" type="search" value="${escapeHtml(state.filters.query ?? '')}" placeholder="Search entity, actor or action" />
           </label>
           <div class="editor-actions">
-            <button class="button button-primary" type="submit">Refresh</button>
-            <button class="button button-secondary" type="button" data-audit-action="reset">Reset</button>
+            ${renderButton({ label: 'Refresh', variant: 'primary', buttonType: 'submit' })}
+            ${renderButton({
+              label: 'Reset',
+              variant: 'secondary',
+              attrs: { 'data-audit-action': 'reset' },
+            })}
           </div>
         </form>
       </div>
@@ -177,7 +169,7 @@ export function renderAuditTrailView({ state, entityOptions = [] }) {
                 ? renderTrailRows(state.entries)
                 : isLoading
                   ? '<tr><td colspan="6"><div class="empty-inline">Loading audit trail...</div></td></tr>'
-                  : '<tr><td colspan="6"><div class="empty-inline">Audit trail rỗng.</div></td></tr>'
+                  : '<tr><td colspan="6"><div class="empty-inline">Audit trail is empty.</div></td></tr>'
             }
           </tbody>
         </table>

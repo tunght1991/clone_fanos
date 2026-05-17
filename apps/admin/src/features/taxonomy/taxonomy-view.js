@@ -3,6 +3,7 @@ import {
   getTaxonomyTypeLabel,
   getTaxonomyTypePluralLabel,
 } from './taxonomy-data.js';
+import { renderBadge, renderButton, renderEmptyState } from '../../ui/primitives.js';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -15,45 +16,44 @@ function escapeHtml(value) {
 
 function renderTabs(activeType, query) {
   const types = ['author', 'category', 'tag', 'narrator'];
-  return `
+      return `
     <div class="taxonomy-tabs">
       ${types
-        .map((type) => `
+        .map(
+          (type) => `
           <a
             class="taxonomy-tab ${type === activeType ? 'taxonomy-tab-active' : ''}"
             href="#/taxonomy?tab=${encodeURIComponent(type)}${query ? `&query=${encodeURIComponent(query)}` : ''}"
           >
             ${escapeHtml(getTaxonomyTypeLabel(type))}
           </a>
-        `)
+        `,
+        )
         .join('')}
     </div>
   `;
 }
 
-function renderStatusBadge(isActive) {
-  return `<span class="badge ${isActive ? 'badge-success' : 'badge-muted'}">${isActive ? 'ACTIVE' : 'INACTIVE'}</span>`;
-}
-
 function renderRowActions(id) {
   return `
-    <button type="button" class="button button-secondary button-sm" data-taxonomy-action="select" data-taxonomy-id="${escapeHtml(id)}">
-      Edit
-    </button>
-    <button type="button" class="button button-secondary button-sm" data-taxonomy-action="delete" data-taxonomy-id="${escapeHtml(id)}">
-      Delete
-    </button>
+    ${renderButton({
+      label: 'Edit',
+      variant: 'secondary',
+      size: 'sm',
+      attrs: { 'data-taxonomy-action': 'select', 'data-taxonomy-id': id },
+    })}
+    ${renderButton({
+      label: 'Delete',
+      variant: 'secondary',
+      size: 'sm',
+      attrs: { 'data-taxonomy-action': 'delete', 'data-taxonomy-id': id },
+    })}
   `;
 }
 
 function renderTable(records, selectedId) {
   if (records.length === 0) {
-    return `
-      <div class="empty-state">
-        <h2>No taxonomy found</h2>
-        <p>Try a different search query or create a new item.</p>
-      </div>
-    `;
+    return renderEmptyState('No taxonomy found', 'Try a different search query or create a new item.');
   }
 
   return `
@@ -70,7 +70,8 @@ function renderTable(records, selectedId) {
         </thead>
         <tbody>
           ${records
-            .map((record) => `
+            .map(
+              (record) => `
               <tr class="${record.id === selectedId ? 'taxonomy-row-selected' : ''}">
                 <td>
                   <div class="content-title">${escapeHtml(record.name)}</div>
@@ -78,14 +79,15 @@ function renderTable(records, selectedId) {
                 </td>
                 <td>${escapeHtml(record.slug)}</td>
                 <td>${escapeHtml(String(record.usageCount))}</td>
-                <td>${renderStatusBadge(record.isActive)}</td>
+                <td>${renderBadge(record.isActive ? 'ACTIVE' : 'INACTIVE', record.isActive ? 'success' : 'muted')}</td>
                 <td>
                   <div class="taxonomy-actions">
                     ${renderRowActions(record.id)}
                   </div>
                 </td>
               </tr>
-            `)
+            `,
+            )
             .join('')}
         </tbody>
       </table>
@@ -108,8 +110,12 @@ export function renderTaxonomyManagerView({ state }) {
           <p>Manage authors, categories, tags, and narrators from one shared source.</p>
         </div>
         <div class="panel-actions">
-          <a class="button button-secondary" href="#/dashboard">Back to dashboard</a>
-          <button class="button button-primary" type="button" data-taxonomy-action="new">New ${escapeHtml(typeLabel)}</button>
+          ${renderButton({ label: 'Back to dashboard', href: '#/dashboard', variant: 'secondary' })}
+          ${renderButton({
+            label: `New ${escapeHtml(typeLabel)}`,
+            variant: 'primary',
+            attrs: { 'data-taxonomy-action': 'new' },
+          })}
         </div>
       </div>
 
@@ -126,8 +132,12 @@ export function renderTaxonomyManagerView({ state }) {
           />
         </label>
         <input type="hidden" name="tab" value="${escapeHtml(state.type)}" />
-        <button class="button button-primary" type="submit">Filter</button>
-        <button class="button button-secondary" type="button" data-taxonomy-action="clear-search">Clear</button>
+        ${renderButton({ label: 'Filter', variant: 'primary', buttonType: 'submit' })}
+        ${renderButton({
+          label: 'Clear',
+          variant: 'secondary',
+          attrs: { 'data-taxonomy-action': 'clear-search' },
+        })}
       </form>
 
       <div class="dashboard-meta">
@@ -188,15 +198,17 @@ export function renderTaxonomyManagerView({ state }) {
             </div>
 
             <div class="editor-actions">
-              <button class="button button-primary" type="submit">
-                ${state.status === 'saving' ? 'Saving...' : 'Save taxonomy'}
-              </button>
-              <button class="button button-secondary" type="button" data-taxonomy-action="reset">
-                Reset
-              </button>
-              <button class="button button-secondary" type="button" data-taxonomy-action="delete-draft">
-                Delete
-              </button>
+              ${renderButton({ label: state.status === 'saving' ? 'Saving...' : 'Save taxonomy', variant: 'primary', buttonType: 'submit' })}
+              ${renderButton({
+                label: 'Reset',
+                variant: 'secondary',
+                attrs: { 'data-taxonomy-action': 'reset' },
+              })}
+              ${renderButton({
+                label: 'Delete',
+                variant: 'secondary',
+                attrs: { 'data-taxonomy-action': 'delete-draft' },
+              })}
             </div>
           </form>
         </div>

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:clone_fanos_mobile/core/storage/onboarding_store.dart';
 import 'package:clone_fanos_mobile/core/storage/session_store.dart';
 import 'package:clone_fanos_mobile/features/auth/data/mock_auth_repository.dart';
+import 'package:clone_fanos_mobile/features/analytics/data/mock_analytics_repository.dart';
 import 'package:clone_fanos_mobile/features/auth/state/app_state.dart';
 import 'package:clone_fanos_mobile/features/engagement/data/mock_engagement_repository.dart';
 import 'package:clone_fanos_mobile/features/discovery/data/mock_discovery_repository.dart';
@@ -11,12 +12,14 @@ import 'package:clone_fanos_mobile/features/subscription/data/mock_subscription_
 
 void main() {
   test('AppState boots into onboarding when no session exists', () async {
+    final analyticsRepository = MockAnalyticsRepository();
     final appState = AppState(
       authRepository: MockAuthRepository(),
       contentRepository: MockDiscoveryRepository(),
       playerRepository: MockPlayerRepository(),
       engagementRepository: MockEngagementRepository(),
       subscriptionRepository: MockSubscriptionRepository(),
+      analyticsRepository: analyticsRepository,
       onboardingStore: InMemoryOnboardingStore(),
       sessionStore: InMemorySessionStore(),
     );
@@ -24,6 +27,7 @@ void main() {
     await appState.bootstrap();
 
     expect(appState.phase, AppPhase.onboarding);
+    expect(analyticsRepository.recordedEvents.single.event.eventName, 'app_opened');
   });
 
   test('AppState moves to authenticated after login', () async {

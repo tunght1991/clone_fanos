@@ -22,10 +22,14 @@ class MockDiscoveryRepository implements DiscoveryRepository {
   @override
   Future<SearchPage> searchAudiobooks(DiscoverySearchRequest request) async {
     final normalizedQuery = request.query.trim().toLowerCase();
-    final filtered = _filterRecords(
+    final filtered = _sortRecords(
+      _filterRecords(
       categoryId: request.categoryId,
       premiumFlag: request.premiumFlag,
       query: normalizedQuery,
+      ),
+      sortBy: request.sortBy,
+      sortOrder: request.sortOrder,
     ).map((record) => record.summary).toList();
 
     final page = request.page < 1 ? 1 : request.page;
@@ -86,6 +90,38 @@ class MockDiscoveryRepository implements DiscoveryRepository {
 
       return true;
     }).toList();
+  }
+
+  List<_MockAudiobookRecord> _sortRecords(
+    List<_MockAudiobookRecord> records, {
+    required String sortBy,
+    required String sortOrder,
+  }) {
+    final sorted = [...records];
+    final descending = sortOrder == discoverySearchSortOrderDesc;
+
+    int compareStrings(String left, String right) {
+      final result = left.toLowerCase().compareTo(right.toLowerCase());
+      return descending ? -result : result;
+    }
+
+    switch (sortBy) {
+      case discoverySearchSortByTitle:
+        sorted.sort((left, right) => compareStrings(left.summary.title, right.summary.title));
+        break;
+      case discoverySearchSortByDuration:
+        sorted.sort(
+          (left, right) => descending
+              ? right.summary.durationSec.compareTo(left.summary.durationSec)
+              : left.summary.durationSec.compareTo(right.summary.durationSec),
+        );
+        break;
+      case discoverySearchSortByRelevance:
+      default:
+        break;
+    }
+
+    return sorted;
   }
 
   List<ContentCategory> _buildCategories(List<_MockAudiobookRecord> records) {

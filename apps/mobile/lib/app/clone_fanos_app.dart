@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../core/storage/onboarding_store.dart';
 import '../core/storage/session_store.dart';
+import 'app_theme.dart';
 import '../features/auth/domain/auth_repository.dart';
 import '../features/auth/presentation/auth_gate.dart';
 import '../features/auth/state/app_state.dart';
+import '../features/analytics/domain/analytics_repository.dart';
 import '../features/engagement/domain/engagement_repository.dart';
 import '../features/discovery/domain/discovery_repository.dart';
 import '../features/player/domain/player_repository.dart';
@@ -33,6 +35,7 @@ class _CloneFanosAppState extends State<CloneFanosApp> {
       playerRepository: createPlayerRepository(_config),
       engagementRepository: createEngagementRepository(_config),
       subscriptionRepository: createSubscriptionRepository(_config),
+      analyticsRepository: createAnalyticsRepository(_config),
       onboardingStore: InMemoryOnboardingStore(),
       sessionStore: InMemorySessionStore(),
     );
@@ -52,13 +55,7 @@ class _CloneFanosAppState extends State<CloneFanosApp> {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: _config.appName,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1F2A37),
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-        ),
+        theme: buildCloneFanosTheme(),
         home: const AuthGate(),
       ),
     );

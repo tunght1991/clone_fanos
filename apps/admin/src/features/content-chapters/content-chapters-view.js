@@ -1,4 +1,5 @@
 import { getChapterPublishWarning } from './content-chapters-data.js';
+import { renderBadge, renderButton, renderEmptyState as renderEmptyStateCard } from '../../ui/primitives.js';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -25,28 +26,27 @@ function formatDuration(seconds) {
 
 function renderStatusBadge(status) {
   const normalized = String(status ?? 'draft').toLowerCase();
-  const badgeClass = {
-    draft: 'badge badge-neutral',
-    ready: 'badge badge-warning',
-    published: 'badge badge-success',
-    archived: 'badge badge-muted',
-  }[normalized] ?? 'badge';
+  const tone = {
+    draft: 'neutral',
+    ready: 'warning',
+    published: 'success',
+    archived: 'muted',
+  }[normalized] ?? 'neutral';
 
-  return `<span class="${badgeClass}">${escapeHtml(normalized.toUpperCase())}</span>`;
+  return renderBadge(normalized.toUpperCase(), tone);
 }
 
 function renderActionButton({ action, chapterId, label, disabled = false }) {
-  return `
-    <button
-      type="button"
-      class="button button-secondary button-sm"
-      data-chapter-action="${escapeHtml(action)}"
-      data-chapter-id="${escapeHtml(chapterId)}"
-      ${disabled ? 'disabled' : ''}
-    >
-      ${escapeHtml(label)}
-    </button>
-  `;
+  return renderButton({
+    label,
+    variant: 'secondary',
+    size: 'sm',
+    disabled,
+    attrs: {
+      'data-chapter-action': action,
+      'data-chapter-id': chapterId,
+    },
+  });
 }
 
 function renderChapterRow(chapter, selectedChapterId, { publishActionsDisabled = false } = {}) {
@@ -81,12 +81,7 @@ function renderChapterRow(chapter, selectedChapterId, { publishActionsDisabled =
 }
 
 function renderEmptyState() {
-  return `
-    <div class="empty-state">
-      <h2>No chapters yet</h2>
-      <p>Create a draft chapter to start building the audiobook structure.</p>
-    </div>
-  `;
+  return renderEmptyStateCard('No chapters yet', 'Create a draft chapter to start building the audiobook structure.');
 }
 
 function renderFieldError(error) {
@@ -110,9 +105,9 @@ export function renderChapterManagerView({ state }) {
           <p>Manage chapter order, upload audio, and publish state for this audiobook.</p>
         </div>
         <div class="panel-actions">
-          <a class="button button-secondary" href="#/content/${encodeURIComponent(audiobookId)}">Back to editor</a>
-          <a class="button button-secondary" href="#/audit?entityType=audiobook&entityId=${encodeURIComponent(audiobookId)}">Audit audiobook</a>
-          <button class="button button-primary" type="button" data-chapter-action="new">New chapter</button>
+          ${renderButton({ label: 'Back to editor', href: `#/content/${encodeURIComponent(audiobookId)}`, variant: 'secondary' })}
+          ${renderButton({ label: 'Audit audiobook', href: `#/audit?entityType=audiobook&entityId=${encodeURIComponent(audiobookId)}`, variant: 'secondary' })}
+          ${renderButton({ label: 'New chapter', variant: 'primary', attrs: { 'data-chapter-action': 'new' } })}
         </div>
       </div>
 
@@ -220,15 +215,20 @@ export function renderChapterManagerView({ state }) {
             </div>
 
             <div class="editor-actions">
-              <button class="button button-primary" type="submit" data-chapter-save>
-                ${state.status === 'saving' ? 'Saving...' : 'Save chapter'}
-              </button>
-              <button class="button button-secondary" type="button" data-chapter-action="reset">
-                Reset draft
-              </button>
+              ${renderButton({
+                label: state.status === 'saving' ? 'Saving...' : 'Save chapter',
+                variant: 'primary',
+                buttonType: 'submit',
+                attrs: { 'data-chapter-save': true },
+              })}
+              ${renderButton({ label: 'Reset draft', variant: 'secondary', attrs: { 'data-chapter-action': 'reset' } })}
               ${
                 selectedChapter?.id
-                  ? `<a class="button button-secondary" href="#/audit?entityType=chapter&entityId=${encodeURIComponent(selectedChapter.id)}">View audit trail</a>`
+                  ? renderButton({
+                      label: 'View audit trail',
+                      href: `#/audit?entityType=chapter&entityId=${encodeURIComponent(selectedChapter.id)}`,
+                      variant: 'secondary',
+                    })
                   : ''
               }
             </div>

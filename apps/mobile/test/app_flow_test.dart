@@ -61,6 +61,9 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
 
+    await tester.drag(find.byType(ListView).first, const Offset(0, -700));
+    await tester.pumpAndSettle();
+
     expect(find.textContaining('Clean Architecture cho Product Teams'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('search-card-book-clean-architecture')));
@@ -118,6 +121,9 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'system design');
     await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -700));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('search-card-book-system-design')));

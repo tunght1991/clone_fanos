@@ -2,6 +2,7 @@ import {
   filterEditorOptions,
   getEditorPublishWarning,
 } from './content-editor-data.js';
+import { renderBadge, renderButton } from '../../ui/primitives.js';
 import {
   DEMO_AUTHOR_OPTIONS,
   DEMO_CATEGORY_OPTIONS,
@@ -22,14 +23,22 @@ function renderStatusBadge(state) {
   const label = `${String(state.status ?? 'editing').toUpperCase()}`;
   const publishLocked =
     state.draft.chapterCount <= 0
-      ? '<span class="badge badge-editor badge-publish_locked">publish_locked</span>'
+      ? renderBadge('publish_locked', 'warning', 'badge-editor')
       : '';
+  const tone =
+    state.status === 'saved'
+      ? 'success'
+      : state.status === 'saving'
+        ? 'muted'
+        : state.status === 'validation_error'
+          ? 'warning'
+          : state.status === 'publish_locked'
+            ? 'warning'
+            : 'neutral';
 
   return `
     <div class="status-stack">
-      <span class="badge badge-editor badge-${escapeHtml(String(state.status ?? 'editing'))}">
-        ${escapeHtml(label)}
-      </span>
+      ${renderBadge(label, tone, 'badge-editor')}
       ${publishLocked}
     </div>
   `;
@@ -183,7 +192,7 @@ export function renderAudiobookEditorView({ state }) {
         </div>
         <div class="panel-actions">
           ${renderStatusBadge(state)}
-          <a class="button button-secondary" href="#/content">Quay lại dashboard</a>
+          ${renderButton({ label: 'Quay lại dashboard', href: '#/content', variant: 'secondary' })}
         </div>
       </div>
 
@@ -309,32 +318,38 @@ export function renderAudiobookEditorView({ state }) {
       </section>
 
       <footer class="editor-actions">
-        <button class="button button-primary" type="submit" data-editor-save ${state.status === 'saving' ? 'disabled' : ''}>
-          ${state.status === 'saving' ? 'Saving...' : 'Save draft'}
-        </button>
+        ${renderButton({
+          label: state.status === 'saving' ? 'Saving...' : 'Save draft',
+          variant: 'primary',
+          disabled: state.status === 'saving',
+          buttonType: 'submit',
+          attrs: { 'data-editor-save': true },
+        })}
         ${
           state.draft.id
             ? `
-              <button
-                class="button button-secondary"
-                type="button"
-                data-editor-action="${state.draft.status === 'PUBLISHED' ? 'unpublish' : 'publish'}"
-                ${publishActionBusy || (state.draft.status !== 'PUBLISHED' && state.draft.chapterCount <= 0) ? 'disabled' : ''}
-              >
-                ${state.draft.status === 'PUBLISHED' ? 'Unpublish audiobook' : 'Publish audiobook'}
-              </button>
-              <a class="button button-secondary" href="#/audit?entityType=audiobook&entityId=${encodeURIComponent(state.draft.id)}">
-                View audit trail
-              </a>
+              ${renderButton({
+                label: state.draft.status === 'PUBLISHED' ? 'Unpublish audiobook' : 'Publish audiobook',
+                variant: 'secondary',
+                disabled: publishActionBusy || (state.draft.status !== 'PUBLISHED' && state.draft.chapterCount <= 0),
+                attrs: {
+                  'data-editor-action': state.draft.status === 'PUBLISHED' ? 'unpublish' : 'publish',
+                },
+              })}
+              ${renderButton({
+                label: 'View audit trail',
+                href: `#/audit?entityType=audiobook&entityId=${encodeURIComponent(state.draft.id)}`,
+                variant: 'secondary',
+              })}
             `
             : ''
         }
-        <a
-          class="button button-secondary ${state.draft.id ? '' : 'button-disabled'}"
-          href="${state.draft.id ? `#/content/${encodeURIComponent(state.draft.id)}/chapters` : '#/content'}"
-        >
-          Next: chapters
-        </a>
+        ${renderButton({
+          label: 'Next: chapters',
+          href: state.draft.id ? `#/content/${encodeURIComponent(state.draft.id)}/chapters` : '#/content',
+          variant: 'secondary',
+          className: state.draft.id ? '' : 'button-disabled',
+        })}
       </footer>
 
       <div class="editor-footnote">
@@ -351,7 +366,7 @@ export function renderChapterStubView({ id }) {
       <div class="panel-kicker">Chapter upload</div>
       <h2>Đường đi sang chapter upload</h2>
       <p>Task 4 sẽ thay màn này bằng chapter list, upload audio và reorder.</p>
-      <a class="button button-secondary" href="#/content/${encodeURIComponent(id)}">Quay lại editor</a>
+      ${renderButton({ label: 'Quay lại editor', href: `#/content/${encodeURIComponent(id)}`, variant: 'secondary' })}
     </div>
   `;
 }
