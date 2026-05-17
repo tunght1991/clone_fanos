@@ -1,7 +1,5 @@
-import {
-  CONTENT_STATUS_OPTIONS,
-  makeContentDashboardSearch,
-} from './content-dashboard-data.js';
+import { CONTENT_STATUS_OPTIONS, makeContentDashboardSearch } from './content-dashboard-data.js';
+import { renderBadge, renderButton, renderEmptyState } from '../../ui/primitives.js';
 
 function escapeHtml(value) {
   return String(value)
@@ -21,15 +19,6 @@ function formatDate(value) {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-}
-
-function badgeClassForStatus(status) {
-  return {
-    DRAFT: 'badge badge-neutral',
-    PUBLISHED: 'badge badge-success',
-    UNPUBLISHED: 'badge badge-warning',
-    ARCHIVED: 'badge badge-muted',
-  }[status] ?? 'badge';
 }
 
 function renderStatusOptions(selectedStatus) {
@@ -56,31 +45,31 @@ function renderAudiobookRow(item, filters) {
       </td>
       <td>${escapeHtml(item.narratorNames.join(', '))}</td>
       <td>${escapeHtml(item.categoryNames.join(', '))}</td>
-      <td>
-        <span class="${badgeClassForStatus(item.status)}">${escapeHtml(item.status)}</span>
-      </td>
-      <td>
-        <span class="badge ${item.premiumFlag ? 'badge-premium' : 'badge-quiet'}">
-          ${item.premiumFlag ? 'Premium' : 'Free'}
-        </span>
-      </td>
+      <td>${
+        renderBadge(
+          item.status,
+          item.status === 'PUBLISHED'
+            ? 'success'
+            : item.status === 'UNPUBLISHED'
+              ? 'warning'
+              : item.status === 'ARCHIVED'
+                ? 'muted'
+                : 'neutral',
+        )
+      }</td>
+      <td>${renderBadge(item.premiumFlag ? 'Premium' : 'Free', item.premiumFlag ? 'premium' : 'quiet')}</td>
       <td>${escapeHtml(String(item.chapterCount))}</td>
       <td>${escapeHtml(formatDate(item.updatedAt))}</td>
       <td>
-        <a class="button button-secondary button-sm" href="${detailHref}" data-content-item="${escapeHtml(item.id)}">
-          Mở editor
-        </a>
+        ${renderButton({
+          label: 'Mở editor',
+          href: detailHref,
+          variant: 'secondary',
+          size: 'sm',
+          attrs: { 'data-content-item': item.id },
+        })}
       </td>
     </tr>
-  `;
-}
-
-function renderEmptyState(title, description) {
-  return `
-    <div class="empty-state">
-      <h2>${escapeHtml(title)}</h2>
-      <p>${escapeHtml(description)}</p>
-    </div>
   `;
 }
 
@@ -96,8 +85,8 @@ export function renderContentDashboardView({ state, session }) {
           <p>Search, filter và mở vào editor theo từng item. Nguồn dữ liệu: ${escapeHtml(source)}.</p>
         </div>
         <div class="panel-actions">
-          <a class="button button-secondary" href="#/content">Reset filters</a>
-          <a class="button button-primary" href="#/content/new">Tạo audiobook</a>
+          ${renderButton({ label: 'Reset filters', href: '#/content', variant: 'secondary' })}
+          ${renderButton({ label: 'Tạo audiobook', href: '#/content/new', variant: 'primary' })}
         </div>
       </div>
 
@@ -123,7 +112,11 @@ export function renderContentDashboardView({ state, session }) {
           <span>Trang</span>
           <input name="page" type="number" min="1" value="${escapeHtml(String(meta.page))}" />
         </label>
-        <button class="button button-primary" type="submit">${loading ? 'Đang tải...' : 'Áp dụng'}</button>
+        ${renderButton({
+          label: loading ? 'Đang tải...' : 'Áp dụng',
+          variant: 'primary',
+          buttonType: 'submit',
+        })}
       </form>
 
       <div class="dashboard-meta">
@@ -169,18 +162,20 @@ export function renderContentDashboardView({ state, session }) {
       }
 
       <div class="pagination">
-        <a
-          class="button button-secondary button-sm ${meta.hasPrevious ? '' : 'button-disabled'}"
-          href="#/content?query=${encodeURIComponent(filters.query)}&status=${encodeURIComponent(filters.status)}&page=${Math.max(meta.page - 1, 1)}"
-        >
-          Trang trước
-        </a>
-        <a
-          class="button button-secondary button-sm ${meta.hasNext ? '' : 'button-disabled'}"
-          href="#/content?query=${encodeURIComponent(filters.query)}&status=${encodeURIComponent(filters.status)}&page=${Math.min(meta.page + 1, meta.totalPages)}"
-        >
-          Trang sau
-        </a>
+        ${renderButton({
+          label: 'Trang trước',
+          href: `#/content?query=${encodeURIComponent(filters.query)}&status=${encodeURIComponent(filters.status)}&page=${Math.max(meta.page - 1, 1)}`,
+          variant: 'secondary',
+          size: 'sm',
+          className: meta.hasPrevious ? '' : 'button-disabled',
+        })}
+        ${renderButton({
+          label: 'Trang sau',
+          href: `#/content?query=${encodeURIComponent(filters.query)}&status=${encodeURIComponent(filters.status)}&page=${Math.min(meta.page + 1, meta.totalPages)}`,
+          variant: 'secondary',
+          size: 'sm',
+          className: meta.hasNext ? '' : 'button-disabled',
+        })}
       </div>
     </div>
   `;
@@ -196,12 +191,10 @@ export function renderContentDetailStubView({ item, filters }) {
         <div>
           <div class="panel-kicker">Audiobook editor</div>
           <h2>${escapeHtml(item?.title ?? 'Audiobook chưa tìm thấy')}</h2>
-          <p>
-            Task 3 sẽ thay màn này bằng audiobook editor đầy đủ.
-          </p>
+          <p>Task 3 sẽ thay màn này bằng audiobook editor đầy đủ.</p>
         </div>
         <div class="panel-actions">
-          <a class="button button-secondary" href="${backHref}">Quay lại dashboard</a>
+          ${renderButton({ label: 'Quay lại dashboard', href: backHref, variant: 'secondary' })}
         </div>
       </div>
 

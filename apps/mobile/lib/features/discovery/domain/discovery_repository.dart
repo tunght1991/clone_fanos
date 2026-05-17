@@ -4,12 +4,20 @@ import 'discovery_models.dart';
 import '../data/http_discovery_repository.dart';
 import '../data/mock_discovery_repository.dart';
 
+const discoverySearchSortByRelevance = 'relevance';
+const discoverySearchSortByTitle = 'title';
+const discoverySearchSortByDuration = 'duration';
+const discoverySearchSortOrderAsc = 'asc';
+const discoverySearchSortOrderDesc = 'desc';
+
 class DiscoverySearchRequest {
   final String query;
   final int page;
   final int pageSize;
   final String? categoryId;
   final bool? premiumFlag;
+  final String sortBy;
+  final String sortOrder;
 
   const DiscoverySearchRequest({
     required this.query,
@@ -17,6 +25,8 @@ class DiscoverySearchRequest {
     this.pageSize = 20,
     this.categoryId,
     this.premiumFlag,
+    this.sortBy = discoverySearchSortByRelevance,
+    this.sortOrder = discoverySearchSortOrderDesc,
   });
 }
 

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../state/app_state.dart';
+import '../../../app/app_theme.dart';
 
 class AuthScreen extends StatefulWidget {
   final AppState appState;
@@ -22,6 +25,17 @@ class _AuthScreenState extends State<AuthScreen> {
   int _tabIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'auth_viewed',
+        payload: {'initialTab': 'login'},
+      ),
+    );
+  }
+
+  @override
   void dispose() {
     _loginEmailController.dispose();
     _loginPasswordController.dispose();
@@ -38,90 +52,235 @@ class _AuthScreenState extends State<AuthScreen> {
         child: AnimatedBuilder(
           animation: widget.appState,
           builder: (context, _) {
-            return Stack(
-              children: [
-                ListView(
-                  padding: const EdgeInsets.all(24),
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Stack(
                   children: [
-                    const SizedBox(height: 24),
-                    Text(
-                      'Welcome back',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Continue your learning habit with a calm, mobile-first audiobook experience.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 24),
-                    SegmentedButton<int>(
-                      segments: const [
-                        ButtonSegment(value: 0, label: Text('Login')),
-                        ButtonSegment(value: 1, label: Text('Register')),
+                    ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                      children: [
+                        _AuthHeroCard(
+                          title: 'Welcome back',
+                          subtitle:
+                              'Continue your learning habit with a polished audiobook experience built around focus and premium access.',
+                          accentText: 'Paywall • Verify • Unlock',
+                        ),
+                        const SizedBox(height: 20),
+                        SegmentedButton<int>(
+                          segments: const [
+                            ButtonSegment(value: 0, label: Text('Login')),
+                            ButtonSegment(value: 1, label: Text('Register')),
+                          ],
+                          selected: <int>{_tabIndex},
+                          onSelectionChanged: (selection) {
+                            setState(() {
+                              _tabIndex = selection.first;
+                            });
+                            widget.appState.clearError();
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        if (_tabIndex == 0)
+                          _LoginForm(
+                            formKey: _loginFormKey,
+                            emailController: _loginEmailController,
+                            passwordController: _loginPasswordController,
+                            isBusy: widget.appState.isBusy,
+                            errorMessage: widget.appState.errorMessage,
+                            onSubmit: _submitLogin,
+                            onClearError: widget.appState.clearError,
+                          )
+                        else
+                          _RegisterForm(
+                            formKey: _registerFormKey,
+                            nameController: _registerNameController,
+                            emailController: _registerEmailController,
+                            passwordController: _registerPasswordController,
+                            isBusy: widget.appState.isBusy,
+                            errorMessage: widget.appState.errorMessage,
+                            onSubmit: _submitRegister,
+                            onClearError: widget.appState.clearError,
+                          ),
                       ],
-                      selected: <int>{_tabIndex},
-                      onSelectionChanged: (selection) {
-                        setState(() {
-                          _tabIndex = selection.first;
-                        });
-                        widget.appState.clearError();
-                      },
                     ),
-                    const SizedBox(height: 24),
-                    if (_tabIndex == 0)
-                      _LoginForm(
-                        formKey: _loginFormKey,
-                        emailController: _loginEmailController,
-                        passwordController: _loginPasswordController,
-                        isBusy: widget.appState.isBusy,
-                        errorMessage: widget.appState.errorMessage,
-                        onSubmit: () async {
-                          if (!_loginFormKey.currentState!.validate()) {
-                            return;
-                          }
-
-                          await widget.appState.login(
-                            email: _loginEmailController.text,
-                            password: _loginPasswordController.text,
-                          );
-                        },
-                        onClearError: widget.appState.clearError,
-                      )
-                    else
-                      _RegisterForm(
-                        formKey: _registerFormKey,
-                        nameController: _registerNameController,
-                        emailController: _registerEmailController,
-                        passwordController: _registerPasswordController,
-                        isBusy: widget.appState.isBusy,
-                        errorMessage: widget.appState.errorMessage,
-                        onSubmit: () async {
-                          if (!_registerFormKey.currentState!.validate()) {
-                            return;
-                          }
-
-                          await widget.appState.register(
-                            displayName: _registerNameController.text,
-                            email: _registerEmailController.text,
-                            password: _registerPasswordController.text,
-                          );
-                        },
-                        onClearError: widget.appState.clearError,
+                    if (widget.appState.isBusy)
+                      const Positioned.fill(
+                        child: IgnorePointer(
+                          child: ColoredBox(
+                            color: Color(0x33FFFFFF),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                        ),
                       ),
                   ],
                 ),
-                if (widget.appState.isBusy)
-                  const Positioned.fill(
-                    child: IgnorePointer(
-                      child: ColoredBox(
-                        color: Color(0x33FFFFFF),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitLogin() async {
+    if (!_loginFormKey.currentState!.validate()) {
+      return;
+    }
+
+    final email = _loginEmailController.text;
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'auth_login_submitted',
+        payload: {'method': 'email'},
+      ),
+    );
+    await widget.appState.login(
+      email: email,
+      password: _loginPasswordController.text,
+    );
+
+    if (widget.appState.phase == AppPhase.authenticated) {
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'auth_login_success',
+          payload: {'method': 'email'},
+        ),
+      );
+      return;
+    }
+
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'auth_login_failed',
+        payload: {
+          'method': 'email',
+          'error': widget.appState.errorMessage,
+        },
+      ),
+    );
+  }
+
+  Future<void> _submitRegister() async {
+    if (!_registerFormKey.currentState!.validate()) {
+      return;
+    }
+
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'auth_register_submitted',
+        payload: {'method': 'email'},
+      ),
+    );
+    await widget.appState.register(
+      displayName: _registerNameController.text,
+      email: _registerEmailController.text,
+      password: _registerPasswordController.text,
+    );
+
+    if (widget.appState.phase == AppPhase.authenticated) {
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'auth_register_success',
+          payload: {'method': 'email'},
+        ),
+      );
+      return;
+    }
+
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'auth_register_failed',
+        payload: {
+          'method': 'email',
+          'error': widget.appState.errorMessage,
+        },
+      ),
+    );
+  }
+}
+
+class _AuthHeroCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String accentText;
+
+  const _AuthHeroCard({
+    required this.title,
+    required this.subtitle,
+    required this.accentText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [
+              CloneFanosTokens.primary.withOpacity(0.08),
+              CloneFanosTokens.secondary.withOpacity(0.10),
+              theme.colorScheme.surface,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: CloneFanosTokens.primary,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'CF',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.04,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Clone Fanos',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: CloneFanosTokens.primary,
+                          letterSpacing: 0.08,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        accentText,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Text(title, style: theme.textTheme.headlineMedium),
+            const SizedBox(height: 8),
+            Text(subtitle, style: theme.textTheme.bodyMedium),
+          ],
         ),
       ),
     );

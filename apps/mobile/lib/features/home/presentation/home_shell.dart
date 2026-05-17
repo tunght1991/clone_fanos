@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:characters/characters.dart';
 import 'package:flutter/material.dart';
 
+import '../../../app/app_theme.dart';
 import '../../../app/app_scope.dart';
 import '../../auth/state/app_state.dart';
 import '../../engagement/domain/engagement_models.dart';
@@ -27,6 +28,17 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
   @override
+  void initState() {
+    super.initState();
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'home_viewed',
+        payload: {'defaultTab': 'home'},
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: widget.appState,
@@ -34,6 +46,7 @@ class _HomeShellState extends State<HomeShell> {
         final user = widget.appState.currentUser;
 
         return Scaffold(
+          backgroundColor: Theme.of(context).colorScheme.background,
           appBar: AppBar(
             title: Text('Hello, ${user?.displayName ?? 'Reader'}'),
             actions: [
@@ -106,11 +119,21 @@ class _HomeTabState extends State<_HomeTab> {
     return widget.appState.contentRepository.getBrowseFeed(categoryId: _selectedCategoryId);
   }
 
-  void _selectCategory(String? categoryId) {
+  void _selectCategory(ContentCategory? category) {
     setState(() {
-      _selectedCategoryId = categoryId;
+      _selectedCategoryId = category?.id;
       _feedFuture = _loadFeed();
     });
+
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'category_viewed',
+        payload: {
+          'categoryId': category?.id,
+          'categoryName': category?.name ?? 'All',
+        },
+      ),
+    );
   }
 
   @override
@@ -156,12 +179,23 @@ class _HomeTabState extends State<_HomeTab> {
           else
             _ContinueListeningCard(
               progress: feed.continueListening!,
-              onTap: () => _openPlayer(
-                context,
-                audiobookId: feed.continueListening!.audiobookId,
-                chapterId: feed.continueListening!.chapterId,
-                positionMs: feed.continueListening!.positionMs,
-              ),
+              onTap: () {
+                unawaited(
+                  widget.appState.trackAnalyticsEvent(
+                    'continue_listening_clicked',
+                    payload: {
+                      'audiobookId': feed.continueListening!.audiobookId,
+                      'chapterId': feed.continueListening!.chapterId,
+                    },
+                  ),
+                );
+                _openPlayer(
+                  context,
+                  audiobookId: feed.continueListening!.audiobookId,
+                  chapterId: feed.continueListening!.chapterId,
+                  positionMs: feed.continueListening!.positionMs,
+                );
+              },
             ),
           const SizedBox(height: 24),
           _SectionHeader(
@@ -197,7 +231,7 @@ class _HomeTabState extends State<_HomeTab> {
                   return ChoiceChip(
                     label: Text('${category.name} ? ${category.itemCount}'),
                     selected: selected,
-                    onSelected: (_) => _selectCategory(category.id),
+                    onSelected: (_) => _selectCategory(category),
                   );
                 },
               ),
@@ -221,7 +255,7 @@ class _HomeTabState extends State<_HomeTab> {
                 child: AudiobookSummaryCard(
                   key: ValueKey('home-card-${item.id}'),
                   item: item,
-                  onTap: () => _openDetail(context, audiobookId: item.id),
+                  onTap: () => _openDetail(context, audiobookId: item.id, source: 'home'),
                 ),
               ),
             ),
@@ -244,7 +278,7 @@ class _HomeTabState extends State<_HomeTab> {
                 child: AudiobookSummaryCard(
                   key: ValueKey('home-card-${item.id}'),
                   item: item,
-                  onTap: () => _openDetail(context, audiobookId: item.id),
+                  onTap: () => _openDetail(context, audiobookId: item.id, source: 'home'),
                 ),
               ),
             ),
@@ -258,8 +292,18 @@ class _HomeTabState extends State<_HomeTab> {
             await _feedFuture;
           },
           child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: content,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: content,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -284,6 +328,8 @@ class _SearchTabState extends State<_SearchTab> {
   List<AudiobookSummary> _items = const <AudiobookSummary>[];
   String? _selectedCategoryId;
   String _selectedPremiumFilter = 'all';
+  String _selectedSortBy = discoverySearchSortByRelevance;
+  String _selectedSortOrder = discoverySearchSortOrderDesc;
   String _currentQuery = '';
   bool _isLoading = false;
   bool _hasNext = false;
@@ -293,6 +339,16 @@ class _SearchTabState extends State<_SearchTab> {
   @override
   void initState() {
     super.initState();
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'search_viewed',
+        payload: {
+          'defaultFilter': 'all',
+          'defaultSortBy': _selectedSortBy,
+          'defaultSortOrder': _selectedSortOrder,
+        },
+      ),
+    );
     _bootstrapCategories();
   }
 
@@ -384,6 +440,8 @@ class _SearchTabState extends State<_SearchTab> {
           pageSize: 10,
           categoryId: _selectedCategoryId,
           premiumFlag: premiumFlag,
+          sortBy: _selectedSortBy,
+          sortOrder: _selectedSortOrder,
         ),
       );
       if (!mounted) {
@@ -409,6 +467,23 @@ class _SearchTabState extends State<_SearchTab> {
           }
         }
       });
+
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'search_submitted',
+          payload: {
+            'queryLength': query.length,
+            'page': result.page,
+            'pageSize': result.pageSize,
+            'categoryId': _selectedCategoryId,
+            'premiumFlag': premiumFlag,
+            'sortBy': _selectedSortBy,
+            'sortOrder': _selectedSortOrder,
+            'resultCount': result.items.length,
+            'hasNext': result.hasNext,
+          },
+        ),
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -437,6 +512,12 @@ class _SearchTabState extends State<_SearchTab> {
     setState(() {
       _selectedPremiumFilter = value;
     });
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'search_filter_changed',
+        payload: {'filterType': 'premium', 'value': value},
+      ),
+    );
     if (_currentQuery.trim().isNotEmpty) {
       _submitSearch(_currentQuery, resetResults: true);
     }
@@ -446,6 +527,42 @@ class _SearchTabState extends State<_SearchTab> {
     setState(() {
       _selectedCategoryId = categoryId;
     });
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'search_filter_changed',
+        payload: {'filterType': 'category', 'value': categoryId},
+      ),
+    );
+    if (_currentQuery.trim().isNotEmpty) {
+      _submitSearch(_currentQuery, resetResults: true);
+    }
+  }
+
+  void _changeSortBy(String value) {
+    setState(() {
+      _selectedSortBy = value;
+    });
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'search_filter_changed',
+        payload: {'filterType': 'sortBy', 'value': value},
+      ),
+    );
+    if (_currentQuery.trim().isNotEmpty) {
+      _submitSearch(_currentQuery, resetResults: true);
+    }
+  }
+
+  void _changeSortOrder(String value) {
+    setState(() {
+      _selectedSortOrder = value;
+    });
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'search_filter_changed',
+        payload: {'filterType': 'sortOrder', 'value': value},
+      ),
+    );
     if (_currentQuery.trim().isNotEmpty) {
       _submitSearch(_currentQuery, resetResults: true);
     }
@@ -499,6 +616,50 @@ class _SearchTabState extends State<_SearchTab> {
               label: const Text('Premium'),
               selected: _selectedPremiumFilter == 'premium',
               onSelected: (_) => _changePremiumFilter('premium'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _SectionHeader(
+          title: 'Sort',
+          subtitle: 'Sắp xếp kết quả theo thứ tự phù hợp hơn',
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('Relevance'),
+              selected: _selectedSortBy == discoverySearchSortByRelevance,
+              onSelected: (_) => _changeSortBy(discoverySearchSortByRelevance),
+            ),
+            ChoiceChip(
+              label: const Text('Title'),
+              selected: _selectedSortBy == discoverySearchSortByTitle,
+              onSelected: (_) => _changeSortBy(discoverySearchSortByTitle),
+            ),
+            ChoiceChip(
+              label: const Text('Duration'),
+              selected: _selectedSortBy == discoverySearchSortByDuration,
+              onSelected: (_) => _changeSortBy(discoverySearchSortByDuration),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('Desc'),
+              selected: _selectedSortOrder == discoverySearchSortOrderDesc,
+              onSelected: (_) => _changeSortOrder(discoverySearchSortOrderDesc),
+            ),
+            ChoiceChip(
+              label: const Text('Asc'),
+              selected: _selectedSortOrder == discoverySearchSortOrderAsc,
+              onSelected: (_) => _changeSortOrder(discoverySearchSortOrderAsc),
             ),
           ],
         ),
@@ -568,7 +729,7 @@ class _SearchTabState extends State<_SearchTab> {
                   child: AudiobookSummaryCard(
                     key: ValueKey('search-card-${item.id}'),
                     item: item,
-                    onTap: () => _openDetail(context, audiobookId: item.id),
+                    onTap: () => _openDetail(context, audiobookId: item.id, source: 'search'),
                   ),
                 ),
               if (_hasNext)
@@ -702,68 +863,72 @@ class AudiobookSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _CoverBadge(
-                title: item.title,
-                premiumFlag: item.premiumFlag,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.title,
-                            style: Theme.of(context).textTheme.titleMedium,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (item.premiumFlag) ...[
-                          const SizedBox(width: 8),
-                          const _PremiumBadge(),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      item.authorName,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.narratorNames.join(' â€¢ '),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      item.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _InfoPill(label: _formatDuration(item.durationSec)),
-                        for (final tag in item.tagNames.take(2)) _InfoPill(label: tag),
-                      ],
-                    ),
-                  ],
+      child: Semantics(
+        button: true,
+        label: 'Open audiobook ${item.title} by ${item.authorName}',
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _CoverBadge(
+                  title: item.title,
+                  premiumFlag: item.premiumFlag,
                 ),
-              ),
-            ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.title,
+                              style: Theme.of(context).textTheme.titleMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (item.premiumFlag) ...[
+                            const SizedBox(width: 8),
+                            const _PremiumBadge(),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        item.authorName,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.narratorNames.join(' • '),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        item.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _InfoPill(label: _formatDuration(item.durationSec)),
+                          for (final tag in item.tagNames.take(2)) _InfoPill(label: tag),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -798,6 +963,7 @@ class AudiobookDetailScreen extends StatefulWidget {
 class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
   late Future<_AudiobookDetailViewData?> _detailFuture;
   _AudiobookDetailViewData? _currentData;
+  bool _viewTracked = false;
 
   @override
   void initState() {
@@ -831,6 +997,20 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
       accessToken: widget.appState.accessToken,
     );
 
+    if (!_viewTracked) {
+      _viewTracked = true;
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'audiobook_viewed',
+          payload: {
+            'audiobookId': detail.id,
+            'premiumFlag': detail.premiumFlag,
+            'chapterCount': detail.chapters.length,
+          },
+        ),
+      );
+    }
+
     return _AudiobookDetailViewData(
       detail: detail,
       isFavorite: isFavorite,
@@ -854,6 +1034,15 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
           isFavorite: result.favorited,
         );
       });
+
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          result.favorited ? 'favorite_created' : 'favorite_deleted',
+          payload: {
+            'audiobookId': data.detail.id,
+          },
+        ),
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -890,6 +1079,15 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
   }
 
   Future<void> _openSubscription() async {
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'premium_cta_clicked',
+        payload: {
+          'audiobookId': widget.audiobookId,
+          'source': 'detail',
+        },
+      ),
+    );
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SubscriptionScreen(appState: widget.appState),
@@ -961,9 +1159,11 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
             children: [
               _DetailHeader(detail: data.detail),
               const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked = constraints.maxWidth < 420;
+                  final primaryButton = SizedBox(
+                    width: stacked ? double.infinity : null,
                     child: FilledButton(
                       onPressed: locked
                           ? _openSubscription
@@ -972,17 +1172,36 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                         locked ? 'Upgrade' : 'Start listening',
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
+                  );
+                  final secondaryButton = SizedBox(
+                    width: stacked ? double.infinity : null,
                     child: OutlinedButton(
                       onPressed: locked ? null : () => _openPlayerFromDetail(data.detail, resume: true),
                       child: Text(
                         locked ? 'Premium locked' : 'Continue listening',
                       ),
                     ),
-                  ),
-                ],
+                  );
+
+                  if (stacked) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        primaryButton,
+                        const SizedBox(height: 12),
+                        secondaryButton,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: primaryButton),
+                      const SizedBox(width: 12),
+                      Expanded(child: secondaryButton),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 20),
               if (locked)
@@ -1111,11 +1330,22 @@ class _ContinueListeningCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Card(
-      color: Theme.of(context).colorScheme.primaryContainer,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              colors: [
+                CloneFanosTokens.primary.withOpacity(0.10),
+                theme.colorScheme.surface,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
@@ -1130,20 +1360,27 @@ class _ContinueListeningCard extends StatelessWidget {
                   children: [
                     Text(
                       'Continue listening',
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: theme.textTheme.labelLarge,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       progress.audiobookTitle,
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: theme.textTheme.titleMedium,
                     ),
                     const SizedBox(height: 4),
-                    Text('${progress.chapterTitle} ? ${progress.authorName}'),
+                    Text('${progress.chapterTitle} • ${progress.authorName}'),
                     const SizedBox(height: 8),
-                    LinearProgressIndicator(value: progress.progressFraction),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: progress.progressFraction,
+                        minHeight: 8,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       '${_formatPosition(progress.positionMs)} of ${_formatPosition(progress.totalDurationMs)}',
+                      style: theme.textTheme.bodySmall,
                     ),
                   ],
                 ),
@@ -1169,20 +1406,68 @@ class _HeroPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Card(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Padding(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [
+              CloneFanosTokens.primary.withOpacity(0.08),
+              CloneFanosTokens.secondary.withOpacity(0.08),
+              theme.colorScheme.surface,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: CloneFanosTokens.primary,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.auto_awesome, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Focus-ready catalog',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: CloneFanosTokens.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(title, style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
-            Text(description),
+            Text(description, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 16),
-            FilledButton.tonal(
-              onPressed: onSearch,
-              child: const Text('Go to search'),
+            Row(
+              children: [
+                FilledButton.tonal(
+                  onPressed: onSearch,
+                  child: const Text('Go to search'),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Browse, filter and resume',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1204,24 +1489,32 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 24,
-              child: Icon(icon),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, color: theme.colorScheme.primary),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  Text(title, style: theme.textTheme.titleMedium),
                   const SizedBox(height: 4),
-                  Text(description),
+                  Text(description, style: theme.textTheme.bodyMedium),
                 ],
               ),
             ),
@@ -1249,23 +1542,37 @@ class _StateMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 40),
-                const SizedBox(height: 12),
-                Text(title, style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 8),
-                Text(description, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton.tonal(onPressed: onAction, child: Text(actionLabel)),
-              ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(icon, color: theme.colorScheme.error),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(title, style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  Text(description, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+                  const SizedBox(height: 16),
+                  FilledButton.tonal(onPressed: onAction, child: Text(actionLabel)),
+                ],
+              ),
             ),
           ),
         ),
@@ -1285,12 +1592,21 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          title.toUpperCase(),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: CloneFanosTokens.secondary,
+            letterSpacing: 0.12,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(title, style: theme.textTheme.titleLarge),
         const SizedBox(height: 4),
-        Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+        Text(subtitle, style: theme.textTheme.bodyMedium),
       ],
     );
   }
@@ -1490,7 +1806,17 @@ String _formatPosition(int milliseconds) {
 void _openDetail(
   BuildContext context, {
   required String audiobookId,
+  String source = 'home',
 }) {
+  unawaited(
+    AppScope.of(context).trackAnalyticsEvent(
+      source == 'search' ? 'search_result_clicked' : 'audiobook_card_clicked',
+      payload: {
+        'audiobookId': audiobookId,
+        'source': source,
+      },
+    ),
+  );
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => AudiobookDetailScreen(

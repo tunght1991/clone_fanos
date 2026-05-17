@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../auth/state/app_state.dart';
+import '../../../app/app_theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final AppState appState;
@@ -44,16 +45,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: Column(
             children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: widget.appState.completeOnboarding,
-                  child: const Text('Skip'),
-                ),
+              Row(
+                children: [
+                  _BrandMark(),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: widget.appState.completeOnboarding,
+                    child: const Text('Skip'),
+                  ),
+                ],
               ),
+              const SizedBox(height: 16),
               Expanded(
                 child: PageView.builder(
                   controller: _pageController,
@@ -63,7 +68,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       _currentIndex = index;
                     });
                   },
-                  itemBuilder: (context, index) => _OnboardingPage(item: pages[index]),
+                  itemBuilder: (context, index) => Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: _OnboardingPage(item: pages[index]),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -127,28 +137,87 @@ class _OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [
+              CloneFanosTokens.primary.withOpacity(0.06),
+              CloneFanosTokens.surface,
+              CloneFanosTokens.secondary.withOpacity(0.08),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 48,
+              backgroundColor: theme.colorScheme.primaryContainer,
+              child: Icon(item.icon, size: 48),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              item.title,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              item.description,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandMark extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        CircleAvatar(
-          radius: 48,
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          child: Icon(item.icon, size: 48),
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: CloneFanosTokens.primary,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: const Text(
+            'CF',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.04,
+            ),
+          ),
         ),
-        const SizedBox(height: 24),
-        Text(
-          item.title,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          item.description,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium,
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Clone Fanos', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Audio learning for focused readers',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
-

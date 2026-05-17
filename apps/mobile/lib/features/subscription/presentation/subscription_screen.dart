@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../auth/state/app_state.dart';
@@ -75,6 +77,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             : null;
         _phase = _resolvePhase(subscription);
       });
+
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'subscription_viewed',
+          payload: {
+            'planCount': plans.length,
+            'currentFlowState': subscription?.flowState,
+            'hasEntitlement': subscription?.entitlement.canAccessPremium ?? false,
+          },
+        ),
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -124,6 +137,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       _selectedPlan = plan;
       _phase = _SubscriptionUiPhase.selectPlan;
     });
+
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'subscription_plan_selected',
+        payload: {
+          'planId': plan.id,
+          'planName': plan.name,
+          'planPrice': plan.price,
+          'durationDays': plan.durationDays,
+        },
+      ),
+    );
   }
 
   Future<void> _startPayment() async {
@@ -136,6 +161,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       _phase = _SubscriptionUiPhase.paymentProcessing;
       _errorMessage = null;
     });
+
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'subscription_checkout_started',
+        payload: {
+          'planId': selectedPlan.id,
+          'provider': 'WEB_GATEWAY',
+          'trialRequested': false,
+        },
+      ),
+    );
 
     try {
       final checkout = await widget.appState.subscriptionRepository.checkout(
@@ -156,6 +192,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _phase = _SubscriptionUiPhase.paymentSuccess;
       });
 
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'subscription_checkout_success',
+          payload: {
+            'planId': selectedPlan.id,
+            'checkoutSessionId': checkout.checkoutSessionId,
+            'status': checkout.status,
+          },
+        ),
+      );
+
       await _verifyEntitlement();
     } catch (error) {
       if (!mounted) {
@@ -166,6 +213,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _phase = _SubscriptionUiPhase.paymentFailed;
         _errorMessage = error.toString();
       });
+
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'subscription_checkout_failed',
+          payload: {
+            'planId': selectedPlan.id,
+            'error': error.toString(),
+          },
+        ),
+      );
     }
   }
 
@@ -174,6 +231,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       _phase = _SubscriptionUiPhase.verifying;
       _errorMessage = null;
     });
+
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'subscription_verify_started',
+        payload: {
+          'checkoutSessionId': _checkoutResult?.checkoutSessionId,
+          'provider': 'WEB_GATEWAY',
+        },
+      ),
+    );
 
     try {
       final subscription = await widget.appState.subscriptionRepository.verifySubscription(
@@ -197,8 +264,35 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _subscription = subscription;
         if (subscription?.entitlement.canAccessPremium ?? false) {
           _phase = _SubscriptionUiPhase.unlocked;
+          unawaited(
+            widget.appState.trackAnalyticsEvent(
+              'subscription_verify_success',
+              payload: {
+                'checkoutSessionId': _checkoutResult?.checkoutSessionId,
+                'entitlementStatus': subscription?.entitlement.status,
+              },
+            ),
+          );
+          unawaited(
+            widget.appState.trackAnalyticsEvent(
+              'subscription_unlocked',
+              payload: {
+                'checkoutSessionId': _checkoutResult?.checkoutSessionId,
+                'entitlementStatus': subscription?.entitlement.status,
+              },
+            ),
+          );
         } else {
           _phase = _SubscriptionUiPhase.pendingVerification;
+          unawaited(
+            widget.appState.trackAnalyticsEvent(
+              'subscription_verify_pending',
+              payload: {
+                'checkoutSessionId': _checkoutResult?.checkoutSessionId,
+                'entitlementStatus': subscription?.entitlement.status,
+              },
+            ),
+          );
         }
       });
       await widget.appState.refreshSubscription();
@@ -211,6 +305,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _phase = _SubscriptionUiPhase.paymentFailed;
         _errorMessage = error.toString();
       });
+
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'subscription_verify_failed',
+          payload: {
+            'checkoutSessionId': _checkoutResult?.checkoutSessionId,
+            'error': error.toString(),
+          },
+        ),
+      );
     }
   }
 
@@ -244,6 +348,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(title: const Text('Subscription')),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -252,13 +357,23 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       body: RefreshIndicator(
         onRefresh: _manualRefresh,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           children: [
-            _buildStatusCard(context),
-            const SizedBox(height: 16),
-            _buildPlanCatalog(context),
-            const SizedBox(height: 16),
-            _buildPaymentCard(context),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildStatusCard(context),
+                    const SizedBox(height: 16),
+                    _buildPlanCatalog(context),
+                    const SizedBox(height: 16),
+                    _buildPaymentCard(context),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -269,36 +384,58 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final canAccessPremium = _subscription?.entitlement.canAccessPremium ?? false;
     final title = canAccessPremium ? 'Premium access enabled' : 'Premium access locked';
     final subtitle = _subscription?.plan.name ?? 'Choose a plan to continue';
+    final theme = Theme.of(context);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(title, style: Theme.of(context).textTheme.titleLarge),
-                ),
-                Chip(label: Text(_phaseLabel())),
-              ],
-            ),
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked = constraints.maxWidth < 360;
+                  final phaseChip = Chip(
+                    label: Text(_phaseLabel()),
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.55),
+                  );
+
+                  if (stacked) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 8),
+                        phaseChip,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Text(title, style: theme.textTheme.titleLarge),
+                      ),
+                      phaseChip,
+                    ],
+                  );
+                },
+              ),
             const SizedBox(height: 8),
-            Text(subtitle),
+            Text(subtitle, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 4),
-            Text('Status: ${_subscription?.status ?? 'NONE'}'),
+            Text('Status: ${_subscription?.status ?? 'NONE'}', style: theme.textTheme.bodySmall),
             const SizedBox(height: 4),
-            Text('Provider: ${_subscription?.billing.provider ?? 'N/A'}'),
+            Text('Provider: ${_subscription?.billing.provider ?? 'N/A'}', style: theme.textTheme.bodySmall),
             if (_subscription?.entitlement.expiresAt != null) ...[
               const SizedBox(height: 4),
-              Text('Expires: ${_subscription!.entitlement.expiresAt}'),
+              Text('Expires: ${_subscription!.entitlement.expiresAt}', style: theme.textTheme.bodySmall),
             ],
             if (_errorMessage != null) ...[
               const SizedBox(height: 12),
               Text(
                 _errorMessage!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                style: TextStyle(color: theme.colorScheme.error),
               ),
             ],
           ],
@@ -308,6 +445,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Widget _buildPlanCatalog(BuildContext context) {
+    final theme = Theme.of(context);
     if (_phase == _SubscriptionUiPhase.loading) {
       return const Center(child: Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
@@ -322,9 +460,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('No plans available', style: Theme.of(context).textTheme.titleMedium),
+              Text('No plans available', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
-              const Text('Please refresh to load subscription plans.'),
+              Text('Please refresh to load subscription plans.', style: theme.textTheme.bodyMedium),
             ],
           ),
         ),
@@ -337,7 +475,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Select Plan', style: Theme.of(context).textTheme.titleLarge),
+            Text('Select Plan', style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
             ..._plans.map(
               (plan) => Padding(
@@ -351,9 +489,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _selectedPlan?.id == plan.id
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).dividerColor,
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outlineVariant,
                       ),
+                      color: _selectedPlan?.id == plan.id
+                          ? theme.colorScheme.primaryContainer.withOpacity(0.35)
+                          : theme.colorScheme.surface,
                     ),
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -362,15 +503,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         Row(
                           children: [
                             Expanded(
-                              child: Text(plan.name, style: Theme.of(context).textTheme.titleMedium),
+                              child: Text(plan.name, style: theme.textTheme.titleMedium),
                             ),
-                            if (_selectedPlan?.id == plan.id) const Icon(Icons.check_circle),
+                            if (_selectedPlan?.id == plan.id)
+                              Icon(Icons.check_circle, color: theme.colorScheme.primary),
                           ],
                         ),
                         const SizedBox(height: 6),
-                        Text('${plan.price} VND / ${plan.durationDays} days'),
+                        Text('${plan.price} VND / ${plan.durationDays} days', style: theme.textTheme.bodyMedium),
                         const SizedBox(height: 4),
-                        Text('Status: ${plan.status}'),
+                        Text('Status: ${plan.status}', style: theme.textTheme.bodySmall),
                       ],
                     ),
                   ),
@@ -385,6 +527,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   Widget _buildPaymentCard(BuildContext context) {
     final selectedPlan = _selectedPlan ?? (_plans.isNotEmpty ? _plans.first : null);
+    final theme = Theme.of(context);
 
     return Card(
       child: Padding(
@@ -392,15 +535,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Payment', style: Theme.of(context).textTheme.titleLarge),
+            Text('Payment', style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
-            Text(selectedPlan == null ? 'Select a plan first' : 'Selected: ${selectedPlan.name}'),
+            Text(selectedPlan == null ? 'Select a plan first' : 'Selected: ${selectedPlan.name}', style: theme.textTheme.bodyMedium),
             const SizedBox(height: 4),
-            Text('Subscription flow: ${_phaseLabel()}'),
+            Text('Subscription flow: ${_phaseLabel()}', style: theme.textTheme.bodySmall),
             if (_checkoutResult != null) ...[
               const SizedBox(height: 8),
-              Text('Checkout session: ${_checkoutResult!.checkoutSessionId}'),
-              Text('Checkout status: ${_checkoutResult!.status}'),
+              Text('Checkout session: ${_checkoutResult!.checkoutSessionId}', style: theme.textTheme.bodySmall),
+              Text('Checkout status: ${_checkoutResult!.status}', style: theme.textTheme.bodySmall),
             ],
           ],
         ),
@@ -411,17 +554,26 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Widget _buildActionBar(BuildContext context) {
     final selectedPlan = _selectedPlan ?? (_plans.isNotEmpty ? _plans.first : null);
     final canPay = !_isTerminalUnlocked() && selectedPlan != null;
+    final paymentButtonLabel = _isTerminalUnlocked()
+        ? 'Unlocked'
+        : _phase == _SubscriptionUiPhase.paymentFailed
+            ? 'Retry payment'
+            : 'Continue to payment';
 
-    return Row(
-      children: [
-        Expanded(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 420;
+
+        final verifyButton = SizedBox(
+          width: stacked ? double.infinity : null,
           child: FilledButton.tonal(
             onPressed: _checkoutResult == null ? _manualRefresh : _verifyEntitlement,
             child: const Text('Verify receipt'),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
+        );
+
+        final paymentButton = SizedBox(
+          width: stacked ? double.infinity : null,
           child: FilledButton(
             key: const ValueKey('subscription-payment-button'),
             onPressed: canPay && _phase != _SubscriptionUiPhase.paymentProcessing ? _startPayment : null,
@@ -431,10 +583,29 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(_isTerminalUnlocked() ? 'Unlocked' : 'Continue to payment'),
+                : Text(paymentButtonLabel),
           ),
-        ),
-      ],
+        );
+
+        if (stacked) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              verifyButton,
+              const SizedBox(height: 12),
+              paymentButton,
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: verifyButton),
+            const SizedBox(width: 12),
+            Expanded(child: paymentButton),
+          ],
+        );
+      },
     );
   }
 

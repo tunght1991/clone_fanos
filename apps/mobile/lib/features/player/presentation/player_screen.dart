@@ -8,6 +8,8 @@ import '../../engagement/domain/engagement_models.dart';
 import '../../discovery/domain/discovery_models.dart';
 import '../../player/domain/player_models.dart';
 import '../../subscription/domain/subscription_models.dart';
+import '../../../shared/ui/clone_fanos_primitives.dart';
+import '../../../app/app_theme.dart';
 
 class PlayerScreen extends StatefulWidget {
   final AppState appState;
@@ -175,7 +177,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _startPlayback() async {
-    if (_data == null || _isPremiumLocked(_data!)) {
+    final data = _data;
+    if (data == null || _isPremiumLocked(data)) {
       setState(() {
         _status = PlayerStatus.locked;
       });
@@ -191,7 +194,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     setState(() {
       _status = PlayerStatus.buffering;
-      _firstPlayTriggered = true;
     });
 
     try {
@@ -218,6 +220,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _status = PlayerStatus.playing;
     });
 
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        _firstPlayTriggered ? 'playback_resumed' : 'chapter_started',
+        payload: {
+          'audiobookId': data.detail.id,
+          'chapterId': data.chapter.id,
+          'positionMs': _positionMs,
+        },
+      ),
+    );
+    _firstPlayTriggered = true;
+
     _tickTimer?.cancel();
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     _syncTimer?.cancel();
@@ -225,6 +239,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _pausePlayback({bool sync = true}) async {
+    final data = _data;
+    if (data == null) {
+      return;
+    }
+
     _tickTimer?.cancel();
     _syncTimer?.cancel();
     final currentPositionMs = await _readPlaybackPositionMs();
@@ -237,6 +256,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
     setState(() {
       _status = PlayerStatus.paused;
     });
+    if (data != null) {
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'playback_paused',
+          payload: {
+            'audiobookId': data.detail.id,
+            'chapterId': data.chapter.id,
+            'positionMs': currentPositionMs,
+          },
+        ),
+      );
+    }
     if (sync) {
       await _syncProgress();
     }
@@ -274,6 +305,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _status = PlayerStatus.offline;
         }
       });
+    }
+
+    if (completed) {
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'chapter_completed',
+          payload: {
+            'audiobookId': data.detail.id,
+            'chapterId': data.chapter.id,
+            'positionMs': currentPositionMs,
+          },
+        ),
+      );
     }
   }
 
@@ -318,6 +362,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _positionMs = next;
     });
     unawaited(_audioController.seek(Duration(milliseconds: next)));
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'playback_seeked',
+        payload: {
+          'audiobookId': data.detail.id,
+          'chapterId': data.chapter.id,
+          'positionMs': next,
+        },
+      ),
+    );
     unawaited(_syncProgress());
   }
 
@@ -401,7 +455,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
           positionMs: _positionMs,
         ),
         userId: widget.appState.currentUserId,
-        accessToken: widget.appState.accessToken,
+          accessToken: widget.appState.accessToken,
+        );
+
+      unawaited(
+        widget.appState.trackAnalyticsEvent(
+          'bookmark_created',
+          payload: {
+            'audiobookId': data.detail.id,
+            'chapterId': data.chapter.id,
+            'positionMs': _positionMs,
+          },
+        ),
       );
 
       if (!mounted) {
@@ -427,6 +492,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
         title: const Text('Player'),
         actions: [
@@ -502,50 +568,60 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
 
           return ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
             children: [
-              _PlayerHeader(
-                detail: data.detail,
-                chapter: data.chapter,
-                status: displayStatus,
-                assetAccess: _assetAccess!,
-              ),
-              const SizedBox(height: 20),
-              _PlaybackControls(
-                status: displayStatus,
-                currentPositionMs: _positionMs,
-                chapterDurationMs: data.chapter.durationSec * 1000,
-                speed: _speed,
-                sleepTimer: _sleepTimer,
-                onPlayPause: () {
-                  if (_status == PlayerStatus.playing) {
-                    unawaited(_pausePlayback());
-                  } else {
-                    _startPlayback();
-                  }
-                },
-                onSeek: _seekTo,
-                onSkipBackward: () => _skipBy(-15000),
-                onSkipForward: () => _skipBy(15000),
-                onSpeedChanged: _setSpeed,
-                onSleepTimerChanged: _setSleepTimer,
-              ),
-              const SizedBox(height: 20),
-              _ChapterPicker(
-                chapters: data.detail.chapters,
-                activeChapterId: data.chapter.id,
-                onChapterSelected: _switchChapter,
-              ),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 20),
-                _PlayerStateView(
-                  icon: Icons.cloud_off_outlined,
-                  title: 'Progress sync retry',
-                  description: _errorMessage!,
-                  actionLabel: 'Retry sync',
-                  onAction: () => _syncProgress(),
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _PlayerHeader(
+                        detail: data.detail,
+                        chapter: data.chapter,
+                        status: displayStatus,
+                        assetAccess: _assetAccess!,
+                      ),
+                      const SizedBox(height: 20),
+                      _PlaybackControls(
+                        status: displayStatus,
+                        currentPositionMs: _positionMs,
+                        chapterDurationMs: data.chapter.durationSec * 1000,
+                        speed: _speed,
+                        sleepTimer: _sleepTimer,
+                        onPlayPause: () {
+                          if (_status == PlayerStatus.playing) {
+                            unawaited(_pausePlayback());
+                          } else {
+                            _startPlayback();
+                          }
+                        },
+                        onSeek: _seekTo,
+                        onSkipBackward: () => _skipBy(-15000),
+                        onSkipForward: () => _skipBy(15000),
+                        onSpeedChanged: _setSpeed,
+                        onSleepTimerChanged: _setSleepTimer,
+                      ),
+                      const SizedBox(height: 20),
+                      _ChapterPicker(
+                        chapters: data.detail.chapters,
+                        activeChapterId: data.chapter.id,
+                        onChapterSelected: _switchChapter,
+                      ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 20),
+                        _PlayerStateView(
+                          icon: Icons.cloud_off_outlined,
+                          title: 'Progress sync retry',
+                          description: _errorMessage!,
+                          actionLabel: 'Retry sync',
+                          onAction: () => _syncProgress(),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ],
           );
         },
@@ -656,30 +732,74 @@ class _PlayerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(detail.title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(chapter.title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _StatusChip(label: status.name),
-                _StatusChip(label: assetAccess.provider),
-                _StatusChip(label: assetAccess.streamable ? 'streamable' : 'download-only'),
-                if (assetAccess.offlineCapable) const _StatusChip(label: 'offline-ready'),
-              ],
-            ),
-          ],
+    final theme = Theme.of(context);
+      return Card(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+            colors: [
+              CloneFanosTokens.primary.withOpacity(0.08),
+              theme.colorScheme.surface,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
-      ),
-    );
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked = constraints.maxWidth < 420;
+                  final header = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Now playing', style: theme.textTheme.labelLarge?.copyWith(color: CloneFanosTokens.secondary)),
+                      const SizedBox(height: 6),
+                      Text(detail.title, style: theme.textTheme.headlineMedium),
+                      const SizedBox(height: 4),
+                      Text(chapter.title, style: theme.textTheme.titleMedium),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          CloneFanosStatusChip(label: status.name),
+                          CloneFanosStatusChip(label: assetAccess.provider),
+                          CloneFanosStatusChip(label: assetAccess.streamable ? 'streamable' : 'download-only'),
+                          if (assetAccess.offlineCapable) const CloneFanosStatusChip(label: 'offline-ready'),
+                        ],
+                      ),
+                    ],
+                  );
+
+                  if (stacked) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(child: CloneFanosCoverBadge(title: detail.title, premiumFlag: detail.premiumFlag, large: true)),
+                        const SizedBox(height: 16),
+                        header,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CloneFanosCoverBadge(title: detail.title, premiumFlag: detail.premiumFlag, large: true),
+                      const SizedBox(width: 20),
+                      Expanded(child: header),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
   }
 }
 
@@ -712,16 +832,21 @@ class _PlaybackControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final maxMs = chapterDurationMs <= 0 ? 1.0 : chapterDurationMs.toDouble();
     final currentMs = currentPositionMs.toDouble().clamp(0.0, maxMs).toDouble();
 
     return Card(
-      child: Padding(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: theme.colorScheme.surface,
+        ),
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Playback', style: Theme.of(context).textTheme.titleMedium),
+            Text('Playback', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
             Slider(
               value: currentMs,
@@ -737,25 +862,45 @@ class _PlaybackControls extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  tooltip: 'Skip back',
-                  onPressed: onSkipBackward,
-                  icon: const Icon(Icons.replay_10),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: onPlayPause,
-                  icon: Icon(status == PlayerStatus.playing ? Icons.pause : Icons.play_arrow),
-                  label: Text(status == PlayerStatus.playing ? 'Pause' : 'Play'),
-                ),
-                IconButton(
-                  tooltip: 'Skip forward',
-                  onPressed: onSkipForward,
-                  icon: const Icon(Icons.forward_10),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked = constraints.maxWidth < 360;
+                final controls = [
+                  IconButton(
+                    tooltip: 'Skip back',
+                    onPressed: onSkipBackward,
+                    icon: const Icon(Icons.replay_10),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: onPlayPause,
+                    icon: Icon(status == PlayerStatus.playing ? Icons.pause : Icons.play_arrow),
+                    label: Text(status == PlayerStatus.playing ? 'Pause' : 'Play'),
+                  ),
+                  IconButton(
+                    tooltip: 'Skip forward',
+                    onPressed: onSkipForward,
+                    icon: const Icon(Icons.forward_10),
+                  ),
+                ];
+
+                if (stacked) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(child: controls.first),
+                      const SizedBox(height: 8),
+                      SizedBox(width: double.infinity, child: controls[1]),
+                      const SizedBox(height: 8),
+                      Center(child: controls[2]),
+                    ],
+                  );
+                }
+
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: controls,
+                );
+              },
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -770,7 +915,7 @@ class _PlaybackControls extends StatelessWidget {
                   current: sleepTimer,
                   onChanged: onSleepTimerChanged,
                 ),
-                _StatusChip(label: status == PlayerStatus.ended ? 'ended' : 'background-ready'),
+                CloneFanosStatusChip(label: status == PlayerStatus.ended ? 'ended' : 'background-ready'),
               ],
             ),
           ],
@@ -846,25 +991,26 @@ class _ChapterPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Chapters', style: Theme.of(context).textTheme.titleMedium),
+            Text('Chapters', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
             for (final chapter in chapters)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   backgroundColor: chapter.id == activeChapterId
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : null,
+                      ? theme.colorScheme.primaryContainer
+                      : theme.colorScheme.surfaceContainerHighest,
                   child: Text('${chapter.orderIndex}'),
                 ),
                 title: Text(chapter.title),
-                subtitle: Text('${_formatDuration(chapter.durationSec)} ? ${chapter.status}'),
+                subtitle: Text('${_formatDuration(chapter.durationSec)} • ${chapter.status}'),
                 trailing: chapter.id == activeChapterId
                     ? const Icon(Icons.play_arrow)
                     : const Icon(Icons.chevron_right),
@@ -894,39 +1040,41 @@ class _PlayerStateView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 40),
-                const SizedBox(height: 12),
-                Text(title, style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 8),
-                Text(description, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton.tonal(onPressed: onAction, child: Text(actionLabel)),
-              ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(icon, color: theme.colorScheme.error),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(title, style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  Text(description, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+                  const SizedBox(height: 16),
+                  FilledButton.tonal(onPressed: onAction, child: Text(actionLabel)),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  final String label;
-
-  const _StatusChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(label: Text(label));
   }
 }
 

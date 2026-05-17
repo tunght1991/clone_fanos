@@ -43,6 +43,8 @@ class HttpDiscoveryRepository implements DiscoveryRepository {
         'pageSize': request.pageSize.toString(),
         if (request.categoryId != null) 'categoryId': request.categoryId!,
         if (request.premiumFlag != null) 'premiumFlag': request.premiumFlag!.toString(),
+        'sortBy': request.sortBy,
+        'sortOrder': request.sortOrder,
       },
     );
 

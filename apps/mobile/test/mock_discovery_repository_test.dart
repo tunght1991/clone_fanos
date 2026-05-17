@@ -35,5 +35,26 @@ void main() {
     expect(page.items, isNotEmpty);
     expect(page.items.every((item) => item.premiumFlag), isTrue);
   });
-}
 
+  test('MockDiscoveryRepository sorts by title ascending and descending', () async {
+    final repository = MockDiscoveryRepository();
+
+    final ascPage = await repository.searchAudiobooks(
+      const DiscoverySearchRequest(
+        query: 'cho',
+        sortBy: discoverySearchSortByTitle,
+        sortOrder: discoverySearchSortOrderAsc,
+      ),
+    );
+    final descPage = await repository.searchAudiobooks(
+      const DiscoverySearchRequest(
+        query: 'cho',
+        sortBy: discoverySearchSortByTitle,
+        sortOrder: discoverySearchSortOrderDesc,
+      ),
+    );
+
+    expect(ascPage.items.first.title, 'Clean Architecture cho Product Teams');
+    expect(descPage.items.first.title, 'System Design cho Knowledge Workers');
+  });
+}

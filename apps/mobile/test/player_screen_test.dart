@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:clone_fanos_mobile/app/app_scope.dart';
 import 'package:clone_fanos_mobile/core/storage/onboarding_store.dart';
 import 'package:clone_fanos_mobile/core/storage/session_store.dart';
+import 'package:clone_fanos_mobile/features/analytics/data/mock_analytics_repository.dart';
 import 'package:clone_fanos_mobile/features/auth/data/mock_auth_repository.dart';
 import 'package:clone_fanos_mobile/features/auth/state/app_state.dart';
 import 'package:clone_fanos_mobile/features/engagement/data/mock_engagement_repository.dart';
@@ -18,6 +19,7 @@ void main() {
     final discoveryRepository = MockDiscoveryRepository();
     final detail = await discoveryRepository.getAudiobookDetail('book-clean-architecture');
     expect(detail, isNotNull);
+    final analyticsRepository = MockAnalyticsRepository();
 
     final appState = AppState(
       authRepository: MockAuthRepository(),
@@ -25,6 +27,7 @@ void main() {
       playerRepository: MockPlayerRepository(),
       engagementRepository: MockEngagementRepository(),
       subscriptionRepository: MockSubscriptionRepository(),
+      analyticsRepository: analyticsRepository,
       onboardingStore: InMemoryOnboardingStore(),
       sessionStore: InMemorySessionStore(),
     );
@@ -74,6 +77,10 @@ void main() {
 
     expect(find.text('Pause'), findsOneWidget);
     expect(find.text('14:22'), findsWidgets);
+
+    final eventNames = analyticsRepository.recordedEvents.map((record) => record.event.eventName).toList();
+    expect(eventNames, contains('chapter_started'));
+    expect(eventNames, contains('bookmark_created'));
   });
 
   testWidgets('Player screen unlocks premium content after entitlement refresh', (tester) async {
@@ -82,12 +89,14 @@ void main() {
     expect(detail, isNotNull);
 
     final subscriptionRepository = MockSubscriptionRepository();
+    final analyticsRepository = MockAnalyticsRepository();
     final appState = AppState(
       authRepository: MockAuthRepository(),
       contentRepository: discoveryRepository,
       playerRepository: MockPlayerRepository(),
       engagementRepository: MockEngagementRepository(),
       subscriptionRepository: subscriptionRepository,
+      analyticsRepository: analyticsRepository,
       onboardingStore: InMemoryOnboardingStore(),
       sessionStore: InMemorySessionStore(),
     );

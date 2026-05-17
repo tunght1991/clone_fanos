@@ -4,6 +4,7 @@ import 'package:clone_fanos_mobile/core/storage/session_store.dart';
 import 'package:clone_fanos_mobile/features/auth/data/mock_auth_repository.dart';
 import 'package:clone_fanos_mobile/features/auth/state/app_state.dart';
 import 'package:clone_fanos_mobile/features/discovery/data/mock_discovery_repository.dart';
+import 'package:clone_fanos_mobile/features/analytics/data/mock_analytics_repository.dart';
 import 'package:clone_fanos_mobile/features/engagement/data/mock_engagement_repository.dart';
 import 'package:clone_fanos_mobile/features/player/data/mock_player_repository.dart';
 import 'package:clone_fanos_mobile/features/subscription/data/mock_subscription_repository.dart';
@@ -13,12 +14,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('Subscription screen follows paywall -> select plan -> payment -> verify -> unlock', (tester) async {
+    final analyticsRepository = MockAnalyticsRepository();
     final appState = AppState(
       authRepository: MockAuthRepository(),
       contentRepository: MockDiscoveryRepository(),
       playerRepository: MockPlayerRepository(),
       engagementRepository: MockEngagementRepository(),
       subscriptionRepository: MockSubscriptionRepository(),
+      analyticsRepository: analyticsRepository,
       onboardingStore: InMemoryOnboardingStore(),
       sessionStore: InMemorySessionStore(),
     );
@@ -54,5 +57,19 @@ void main() {
 
     expect(find.text('Premium access enabled'), findsOneWidget);
     expect(find.text('Unlocked'), findsWidgets);
+
+    final eventNames = analyticsRepository.recordedEvents.map((record) => record.event.eventName).toList();
+    expect(
+      eventNames,
+      containsAllInOrder([
+        'subscription_viewed',
+        'subscription_plan_selected',
+        'subscription_checkout_started',
+        'subscription_checkout_success',
+        'subscription_verify_started',
+        'subscription_verify_success',
+        'subscription_unlocked',
+      ]),
+    );
   });
 }

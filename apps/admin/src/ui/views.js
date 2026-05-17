@@ -1,3 +1,5 @@
+import { renderAlert, renderBadge, renderButton, renderEmptyState } from './primitives.js';
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -30,7 +32,11 @@ function shellFrame({ title, subtitle, content, session }) {
             <div class="session-name">${escapeHtml(session?.user?.name ?? session?.user?.email ?? 'Admin')}</div>
             <div class="session-role">${escapeHtml(session?.admin?.role ?? 'ADMIN')}</div>
           </div>
-          <button class="button button-secondary" data-action="logout" type="button">Logout</button>
+          ${renderButton({
+            label: 'Logout',
+            variant: 'secondary',
+            attrs: { 'data-action': 'logout' },
+          })}
         </div>
       </aside>
       <section class="workspace">
@@ -39,7 +45,7 @@ function shellFrame({ title, subtitle, content, session }) {
             <h1>${escapeHtml(title)}</h1>
             <p>${escapeHtml(subtitle)}</p>
           </div>
-          <div class="status-chip">Admin shell ready</div>
+          ${renderBadge('Admin shell ready', 'quiet', 'status-chip')}
         </header>
         <main class="content-area">
           ${content}
@@ -69,18 +75,18 @@ export function renderLoginView({ errorMessage = '', returnTo = '/dashboard' } =
           <p>Đăng nhập để quản lý audiobook, chapter và taxonomy.</p>
         </div>
       </div>
-      ${errorMessage ? `<div class="alert alert-error">${escapeHtml(errorMessage)}</div>` : ''}
+      ${errorMessage ? renderAlert(errorMessage, 'error') : ''}
       <form class="form" data-login-form>
         <input type="hidden" name="returnTo" value="${escapeHtml(returnTo)}" />
-        <label>
+        <label class="editor-label">
           <span>Email</span>
           <input name="email" type="email" autocomplete="email" placeholder="admin@clone-fanos.com" required />
         </label>
-        <label>
+        <label class="editor-label">
           <span>Mật khẩu</span>
           <input name="password" type="password" autocomplete="current-password" placeholder="••••••••" required />
         </label>
-        <button class="button button-primary" type="submit">Đăng nhập</button>
+        ${renderButton({ label: 'Đăng nhập', variant: 'primary', buttonType: 'submit' })}
       </form>
       <div class="hint">
         Phiên đăng nhập sẽ được bootstrap lại bằng <code>GET /auth/me</code> và <code>GET /admin/me</code>.
@@ -92,10 +98,10 @@ export function renderLoginView({ errorMessage = '', returnTo = '/dashboard' } =
 export function renderForbiddenView({ message = 'Tài khoản hiện tại không có quyền truy cập admin.' } = {}) {
   return `
     <div class="center-card">
-      <div class="warning-badge">403</div>
+      ${renderBadge('403', 'warning', 'warning-badge')}
       <h1>Không có quyền truy cập</h1>
       <p>${escapeHtml(message)}</p>
-      <a class="button button-primary" href="#/login">Quay lại đăng nhập</a>
+      ${renderButton({ label: 'Quay lại đăng nhập', href: '#/login', variant: 'primary' })}
     </div>
   `;
 }
@@ -106,22 +112,22 @@ function dashboardPanels() {
       <article class="panel">
         <h2>Content Dashboard</h2>
         <p>Xem danh sách audiobook, search, filter và đi vào editor.</p>
-        <a class="button button-secondary" href="#/content">Mở dashboard nội dung</a>
+        ${renderButton({ label: 'Mở dashboard nội dung', href: '#/content', variant: 'secondary' })}
       </article>
       <article class="panel">
         <h2>Audiobook Editor</h2>
         <p>Chuẩn bị metadata, cover, narrator và publish workflow.</p>
-        <a class="button button-secondary" href="#/content">Đi tới editor</a>
+        ${renderButton({ label: 'Đi tới editor', href: '#/content', variant: 'secondary' })}
       </article>
       <article class="panel">
         <h2>Taxonomy</h2>
         <p>Quản lý author, category, tag và narrator dùng chung selector.</p>
-        <a class="button button-secondary" href="#/taxonomy">Mở taxonomy</a>
+        ${renderButton({ label: 'Mở taxonomy', href: '#/taxonomy', variant: 'secondary' })}
       </article>
       <article class="panel">
         <h2>Audit Trail</h2>
         <p>Xem lịch sử publish/unpublish và thay đổi nội dung.</p>
-        <a class="button button-secondary" href="#/audit">Mở audit trail</a>
+        ${renderButton({ label: 'Mở audit trail', href: '#/audit', variant: 'secondary' })}
       </article>
     </section>
   `;
@@ -140,13 +146,10 @@ function placeholderPanels(routeName) {
     audit: 'Task 6 sẽ thay phần này bằng publish/unpublish và audit timeline.',
   };
 
-  return `
-    <section class="panel">
-      <div class="panel-kicker">Coming next</div>
-      <h2>${escapeHtml(labels[routeName] ?? routeName)}</h2>
-      <p>${escapeHtml(copy[routeName] ?? 'Màn hình này sẽ được triển khai ở task tiếp theo.')}</p>
-    </section>
-  `;
+  return renderEmptyState(
+    labels[routeName] ?? routeName,
+    copy[routeName] ?? 'Màn hình này sẽ được triển khai ở task tiếp theo.',
+  );
 }
 
 export function renderWorkspaceView({ routeName, session }) {

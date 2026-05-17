@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/storage/onboarding_store.dart';
 import '../../../core/storage/session_store.dart';
+import '../../analytics/domain/analytics_models.dart';
+import '../../analytics/domain/analytics_repository.dart';
 import '../../engagement/domain/engagement_repository.dart';
 import '../../discovery/domain/discovery_repository.dart';
 import '../../player/domain/player_repository.dart';
@@ -18,6 +22,7 @@ class AppState extends ChangeNotifier {
   final PlayerRepository playerRepository;
   final EngagementRepository engagementRepository;
   final SubscriptionRepository subscriptionRepository;
+  final AnalyticsRepository analyticsRepository;
   final OnboardingStore onboardingStore;
   final SessionStore sessionStore;
 
@@ -33,6 +38,7 @@ class AppState extends ChangeNotifier {
     required this.playerRepository,
     required this.engagementRepository,
     required this.subscriptionRepository,
+    this.analyticsRepository = const NoopAnalyticsRepository(),
     required this.onboardingStore,
     required this.sessionStore,
   });
@@ -61,6 +67,16 @@ class AppState extends ChangeNotifier {
         _subscription = null;
       }
       _errorMessage = null;
+      unawaited(
+        trackAnalyticsEvent(
+          'app_opened',
+          payload: {
+            'phase': _phase.name,
+            'hasSession': _session != null,
+            'onboardingCompleted': onboardingCompleted,
+          },
+        ),
+      );
     } catch (error) {
       _errorMessage = error.toString();
       _phase = AppPhase.onboarding;
@@ -157,6 +173,26 @@ class AppState extends ChangeNotifier {
     _subscription = subscription;
     notifyListeners();
     return subscription;
+  }
+
+  Future<void> trackAnalyticsEvent(
+    String eventName, {
+    Map<String, Object?> payload = const {},
+  }) async {
+    try {
+      await analyticsRepository.trackEvent(
+        event: AnalyticsEvent(
+          eventName: eventName,
+          sourcePlatform: kIsWeb ? 'web' : 'mobile',
+          payload: payload,
+          occurredAt: DateTime.now().toUtc(),
+        ),
+        userId: currentUserId,
+        accessToken: accessToken,
+      );
+    } catch (_) {
+      // Best effort: analytics must not break the user flow.
+    }
   }
 
   void clearError() {

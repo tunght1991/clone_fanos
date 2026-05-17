@@ -131,21 +131,53 @@ Mục tiêu: triển khai lại subscription theo flow mới trong `docs/flow-di
 | Chốt API contract cho plan, payment attempt, receipt verify, entitlement status | Backend/BA | DONE | `plans`, `checkout`, `verify` và `entitlement.status` đã được khóa trong `packages/shared` và `docs/api-design.md` |
 | Cập nhật backend entitlement làm nguồn sự thật | Backend | DONE | Entitlement được resolve từ subscription snapshot, có `status`, `checkedAt`, `source` và verify trả kết quả theo entitlement thật |
 | Implement receipt verification idempotent | Backend | DONE | Receipt replay không grant lại entitlement; verify cùng receipt trả về trạng thái hiện tại |
-| Rebuild paywall và select plan flow | Mobile | TODO | Màn paywall dẫn sang select plan, sau đó mới sang payment |
-| Rebuild payment result flow trên mobile | Mobile | TODO | `Payment Success` chuyển sang verify, `Payment Failed` cho retry, không unlock trực tiếp |
-| Sync entitlement sau payment success | Mobile/Backend | TODO | App submit receipt/token và poll/refresh trạng thái khi verify pending |
-| Gating premium content theo entitlement | Mobile/Backend | TODO | Premium content chỉ mở khi entitlement success, fail thì quay về paywall |
-| Thêm analytics funnel subscription | Backend/Analytics/Mobile | TODO | Track paywall, select plan, payment start/success/fail, verify success/fail, unlock |
-| Smoke test end-to-end subscription flow mới | Backend/Mobile/QA | TODO | Kiểm tra happy path, failed payment, pending verification, retry và resume app |
+| Rebuild paywall và select plan flow | Mobile | DONE | Màn paywall dẫn sang select plan, sau đó mới sang payment |
+| Rebuild payment result flow trên mobile | Mobile | DONE | `Payment Success` chuyển sang verify, `Payment Failed` cho retry, không unlock trực tiếp |
+| Sync entitlement sau payment success | Mobile/Backend | DONE | App submit receipt/token và poll/refresh trạng thái khi verify pending |
+| Gating premium content theo entitlement | Mobile/Backend | DONE | Premium content chỉ mở khi entitlement success, fail thì quay về paywall |
+| Thêm analytics funnel subscription | Backend/Analytics/Mobile | DONE | Track paywall, select plan, payment start/success/fail, verify success/fail, unlock |
+| Smoke test end-to-end subscription flow mới | Backend/Mobile/QA | DONE | Kiểm tra happy path, failed payment, pending verification, retry và resume app |
 
 ### Checkpoint Sprint 7
 
 | Checkpoint | Owner | Status | Ghi chú |
 |---|---|---|---|
-| Payment success chưa unlock trực tiếp | Backend/Mobile | TODO | Unlock chỉ xảy ra sau verify receipt / entitlement success |
-| Failed payment có retry path rõ ràng | Mobile/Backend | TODO | Người dùng có thể retry payment hoặc thoát về paywall |
-| Entitlement là nguồn sự thật | Backend | TODO | `/subscriptions/me` hoặc endpoint tương đương phản ánh đúng trạng thái |
-| Subscription funnel có thể đo được | Backend/Analytics | TODO | Có đủ event để theo dõi conversion và drop-off |
+| Payment success chưa unlock trực tiếp | Backend/Mobile | DONE | Unlock chỉ xảy ra sau verify receipt / entitlement success |
+| Failed payment có retry path rõ ràng | Mobile/Backend | DONE | Người dùng có thể retry payment hoặc thoát về paywall |
+| Entitlement là nguồn sự thật | Backend | DONE | `/subscriptions/me` hoặc endpoint tương đương phản ánh đúng trạng thái |
+| Subscription funnel có thể đo được | Backend/Analytics | DONE | Có đủ event để theo dõi conversion và drop-off |
+
+## Sprint 8: UI theo DESIGN.md
+
+Mục tiêu: chuẩn hóa toàn bộ UI theo `DESIGN.md`, ưu tiên đồng bộ palette, typography, spacing, radius và component patterns giữa mobile và admin.
+
+### Kế hoạch theo tuần
+
+| Tuần | Trọng tâm | Owner | Status | Ghi chú |
+|---|---|---|---|---|
+| Tuần 1 | Chốt token mapping và dựng foundation UI | Platform/Mobile/Admin | DONE | Mobile theme foundation, primitives và bridge cho admin đã hoàn tất |
+| Tuần 2 | Shared primitives cho mobile và restyle entry screens | Mobile | DONE | Button, card, chip, input, onboarding, auth, home shell đã được restyle theo design system |
+| Tuần 3 | Mobile content/subscription surfaces và admin primitives | Mobile/Admin | DONE | Player, paywall, select plan, payment, bookmarks, favorites và admin primitives đã hoàn tất; admin feature screens đã được restyle |
+| Tuần 4 | Admin feature screens, polish và accessibility | Admin/Platform/Mobile | DONE | Dashboard, editor, taxonomy, audit, contrast, focus, responsive QA đã hoàn tất |
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Chốt mapping token từ `DESIGN.md` sang implementation | Platform/Mobile/Admin | DONE | `app_theme.dart` đã map palette, typography và radius theo design token |
+| Xây shared UI primitives cho mobile | Mobile | DONE | Shared section header, empty/state card, meta chip, status chip và cover badge đã được tách dùng chung |
+| Xây shared UI primitives cho admin | Admin | DONE | Shared shell, button, badge, alert, empty state và panel primitives đã được tách dùng chung |
+| Restyle mobile shell và các màn entry | Mobile | DONE | Onboarding, auth, home shell, navigation, search entry và profile entry đã theo cùng visual system |
+| Restyle mobile content, playback và subscription surfaces | Mobile | DONE | Player, subscription, bookmarks và favorites đã hoàn tất theo design system |
+| Restyle admin dashboard/content/editor stack | Admin | DONE | Dashboard, content list, editor, chapter manager, taxonomy và audit trail đã theo cùng visual system |
+| Polish, accessibility và token gap closure | Platform/Mobile/Admin | DONE | Focus state, contrast, responsive edge cases và token gap closure đã hoàn tất |
+
+### Checkpoint Sprint 8
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Token mapping đã chốt | Platform | DONE | `DESIGN.md` đã map sang `app_theme.dart`, không còn lệch palette/typography/radius ở nền tảng mobile |
+| Mobile UI core screens theo design system | Mobile | DONE | Auth, onboarding, home, player, subscription, bookmarks và favorites đã đồng bộ theme |
+| Admin UI core screens theo design system | Admin | DONE | Dashboard, content editor, taxonomy và audit trail đã đồng bộ |
+| Accessibility và polish đạt mức chấp nhận | Platform/Mobile/Admin | DONE | Contrast, focus state, spacing và responsive behavior đã được rà lại và chấp nhận |
 
 ## Rủi ro theo dõi xuyên suốt
 
