@@ -24,6 +24,7 @@ import {
   ASSET_KINDS,
   ASSET_PURPOSES,
 } from '../../../../packages/shared/src/contracts/asset.js';
+import type { AdminCreateAudiobookChapterRequestDto } from '../../../../packages/shared/src/contracts/content.js';
 import {
   BILLING_PROVIDERS,
   SUBSCRIPTION_WEBHOOK_EVENT_TYPES,
@@ -57,7 +58,8 @@ const SUBSCRIPTION_WEBHOOK_KEYS = [
 const PLAYBACK_PROGRESS_KEYS = ['audiobookId', 'chapterId', 'positionMs', 'completed'] as const;
 const ASSET_ACCESS_KEYS = ['assetKey', 'kind', 'purpose', 'offlineCapable'] as const;
 
-const ADMIN_AUDIOBOOK_KEYS = ['title', 'description', 'coverImageAssetKey', 'authorId', 'durationSec', 'premiumFlag', 'languageCode'] as const;
+const ADMIN_AUDIOBOOK_KEYS = ['title', 'description', 'coverImageAssetKey', 'authorId', 'durationSec', 'premiumFlag', 'languageCode', 'chapters'] as const;
+const ADMIN_AUDIOBOOK_CHAPTER_KEYS = ['title', 'orderIndex', 'durationSec', 'audioAssetKey', 'transcript'] as const;
 const ADMIN_CHAPTER_CREATE_KEYS = ['audiobookId', 'title', 'orderIndex', 'durationSec', 'audioAssetKey', 'transcript'] as const;
 const ADMIN_CHAPTER_UPDATE_KEYS = ['title', 'orderIndex', 'durationSec', 'audioAssetKey', 'transcript'] as const;
 
@@ -105,7 +107,13 @@ export function parseAdminCreateAudiobookRequest(body: unknown): AdminCreateAudi
   const payload = assertPlainRecord(body, 'Admin create audiobook');
   assertAllowedKeys(payload, ADMIN_AUDIOBOOK_KEYS, 'Admin create audiobook');
 
-  return normalizeAdminAudiobookPayload(payload);
+  const request = normalizeAdminAudiobookPayload(payload) as AdminCreateAudiobookRequestDto;
+  const chapters = parseAdminCreateAudiobookChapters(payload.chapters);
+  if (chapters !== undefined) {
+    request.chapters = chapters;
+  }
+
+  return request;
 }
 
 export function parseAdminUpdateAudiobookRequest(body: unknown): AdminUpdateAudiobookRequestDto {
@@ -272,6 +280,34 @@ function normalizeAdminAudiobookPayload(payload: PlainRecord): AdminCreateAudiob
     durationSec: readOptionalNonNegativeInteger(payload.durationSec, 'durationSec', 0),
     premiumFlag: readOptionalBoolean(payload.premiumFlag, 'premiumFlag', false),
     languageCode: readLanguageCode(payload.languageCode, 'languageCode', 'vi'),
+  };
+}
+
+function parseAdminCreateAudiobookChapters(value: unknown): AdminCreateAudiobookChapterRequestDto[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new BadRequestException('chapters must be an array');
+  }
+
+  return value.map((chapter, index) => parseAdminCreateAudiobookChapter(chapter, index));
+}
+
+function parseAdminCreateAudiobookChapter(
+  value: unknown,
+  index: number,
+): AdminCreateAudiobookChapterRequestDto {
+  const payload = assertPlainRecord(value, `Admin create audiobook chapter ${index + 1}`);
+  assertAllowedKeys(payload, ADMIN_AUDIOBOOK_CHAPTER_KEYS, `Admin create audiobook chapter ${index + 1}`);
+
+  return {
+    title: readRequiredText(payload.title, 'chapter.title', 1, 200),
+    orderIndex: readRequiredPositiveInteger(payload.orderIndex, 'chapter.orderIndex'),
+    durationSec: readOptionalNonNegativeInteger(payload.durationSec, 'chapter.durationSec', 0),
+    audioAssetKey: readRequiredText(payload.audioAssetKey, 'chapter.audioAssetKey', 1, 512),
+    transcript: readOptionalTextOrNull(payload.transcript, 'chapter.transcript', 1, 100_000),
   };
 }
 

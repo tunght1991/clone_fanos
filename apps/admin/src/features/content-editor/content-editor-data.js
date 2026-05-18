@@ -12,6 +12,34 @@ import {
 export const MAX_EDITOR_NARRATORS = 3;
 export const DEFAULT_EDITOR_LANGUAGE_CODE = 'vi';
 
+export function createBlankAudiobookChapterDraft(orderIndex = 1) {
+  return {
+    title: '',
+    orderIndex,
+    durationSec: 0,
+    audioAssetKey: '',
+    transcript: '',
+  };
+}
+
+function normalizeAudiobookChapterDraft(chapter, index) {
+  return {
+    title: String(chapter?.title ?? ''),
+    orderIndex: Number.isInteger(Number(chapter?.orderIndex)) && Number(chapter?.orderIndex) > 0 ? Number(chapter.orderIndex) : index + 1,
+    durationSec: Number.isFinite(Number(chapter?.durationSec)) && Number(chapter?.durationSec) >= 0 ? Number(chapter.durationSec) : 0,
+    audioAssetKey: String(chapter?.audioAssetKey ?? ''),
+    transcript: String(chapter?.transcript ?? ''),
+  };
+}
+
+function normalizeAudiobookChapterDrafts(chapters) {
+  if (!Array.isArray(chapters) || chapters.length === 0) {
+    return [];
+  }
+
+  return chapters.map((chapter, index) => normalizeAudiobookChapterDraft(chapter, index));
+}
+
 export const DEMO_AUTHOR_OPTIONS = [
   { id: 'author-001', name: 'Nguyễn Hoàng' },
   { id: 'author-002', name: 'Mai Linh' },
@@ -116,7 +144,8 @@ export function createBlankAudiobookEditorDraft() {
     languageCode: DEFAULT_EDITOR_LANGUAGE_CODE,
     status: 'DRAFT',
     publishedAt: null,
-    chapterCount: 0,
+    chapterCount: 1,
+    chapters: [createBlankAudiobookChapterDraft(1)],
     narrators: normalizeNarratorSlots({}),
     categoryIds: [],
     tagIds: [],
@@ -145,7 +174,8 @@ export function buildAudiobookEditorDraftFromRecord(record) {
     languageCode: String(record?.languageCode ?? DEFAULT_EDITOR_LANGUAGE_CODE),
     status: String(record?.status ?? 'DRAFT').toUpperCase(),
     publishedAt: record?.publishedAt ?? null,
-    chapterCount: Number(record?.chapterCount ?? 0),
+    chapterCount: Number(record?.chapterCount ?? (Array.isArray(record?.chapters) ? record.chapters.length : 0)),
+    chapters: normalizeAudiobookChapterDrafts(record?.chapters),
     narrators: normalizeNarratorSlots(record),
     categoryIds,
     tagIds,
@@ -205,6 +235,65 @@ export function updateAudiobookEditorField(state, field, value) {
     ...state,
     draft: nextDraft,
     ui: nextUi,
+    errors: {},
+    message: '',
+  };
+}
+
+export function addAudiobookEditorChapter(state) {
+  const chapters = [...state.draft.chapters, createBlankAudiobookChapterDraft(state.draft.chapters.length + 1)];
+  return {
+    ...state,
+    draft: {
+      ...state.draft,
+      chapters,
+      chapterCount: chapters.length,
+    },
+    errors: {},
+    message: '',
+  };
+}
+
+export function removeAudiobookEditorChapter(state, index) {
+  const chapters = state.draft.chapters.filter((_, chapterIndex) => chapterIndex !== index);
+  const nextChapters = chapters.length > 0 ? chapters : [createBlankAudiobookChapterDraft(1)];
+  return {
+    ...state,
+    draft: {
+      ...state.draft,
+      chapters: nextChapters.map((chapter, chapterIndex) => ({
+        ...chapter,
+        orderIndex: chapterIndex + 1,
+      })),
+      chapterCount: nextChapters.length,
+    },
+    errors: {},
+    message: '',
+  };
+}
+
+export function updateAudiobookEditorChapterField(state, index, field, value) {
+  const chapters = state.draft.chapters.map((chapter, chapterIndex) => {
+    if (chapterIndex !== index) {
+      return chapter;
+    }
+
+    return {
+      ...chapter,
+      [field]:
+        field === 'orderIndex' || field === 'durationSec'
+          ? Number(value ?? 0)
+          : value,
+    };
+  });
+
+  return {
+    ...state,
+    draft: {
+      ...state.draft,
+      chapters,
+      chapterCount: chapters.length,
+    },
     errors: {},
     message: '',
   };
@@ -321,6 +410,7 @@ export function validateAudiobookEditorState(state) {
   const authorId = normalizeString(state.draft.authorId);
   const durationSec = Number(state.draft.durationSec);
   const narratorCount = state.draft.narrators.filter((slot) => normalizeString(slot.narratorId)).length;
+  const chapters = Array.isArray(state.draft.chapters) ? state.draft.chapters : [];
 
   if (!title) {
     errors.title = 'Title là bắt buộc.';
@@ -338,6 +428,39 @@ export function validateAudiobookEditorState(state) {
     errors.narrators = `Tối đa ${MAX_EDITOR_NARRATORS} narrator.`;
   }
 
+  const chapterErrors = chapters
+    .map((chapter, index) => {
+      const nextErrors = {};
+
+      if (!normalizeString(chapter.title)) {
+        nextErrors.title = 'Chapter title là bắt buộc.';
+      }
+
+      if (!normalizeString(chapter.audioAssetKey)) {
+        nextErrors.audioAssetKey = 'Audio asset key là bắt buộc.';
+      }
+
+      if (!Number.isInteger(Number(chapter.orderIndex)) || Number(chapter.orderIndex) <= 0) {
+        nextErrors.orderIndex = 'Order phải là số nguyên dương.';
+      }
+
+      if (!Number.isFinite(Number(chapter.durationSec)) || Number(chapter.durationSec) < 0) {
+        nextErrors.durationSec = 'Duration phải là số hợp lệ.';
+      }
+
+      return Object.keys(nextErrors).length > 0 ? { index, errors: nextErrors } : null;
+    })
+    .filter(Boolean);
+
+  if (chapterErrors.length > 0) {
+    errors.chapters = 'Vui lòng kiểm tra các chapter trong form.';
+    errors.chapterErrors = chapterErrors;
+  }
+
+  if (state.mode === 'create' && chapters.length === 0) {
+    errors.chapters = 'Ít nhất 1 chapter là bắt buộc.';
+  }
+
   return {
     valid: Object.keys(errors).length === 0,
     errors,
@@ -347,7 +470,7 @@ export function validateAudiobookEditorState(state) {
 
 export function serializeAudiobookEditorPayload(state) {
   const durationSec = Number(state.draft.durationSec);
-  return {
+  const payload = {
     title: String(state.draft.title).trim(),
     description: String(state.draft.description).trim() || null,
     coverImageAssetKey: state.draft.coverImageAssetKey || null,
@@ -356,6 +479,18 @@ export function serializeAudiobookEditorPayload(state) {
     premiumFlag: Boolean(state.draft.premiumFlag),
     languageCode: String(state.draft.languageCode || DEFAULT_EDITOR_LANGUAGE_CODE).trim() || DEFAULT_EDITOR_LANGUAGE_CODE,
   };
+
+  if (state.mode === 'create') {
+    payload.chapters = (state.draft.chapters ?? []).map((chapter, index) => ({
+      title: String(chapter.title).trim(),
+      orderIndex: Number.isInteger(Number(chapter.orderIndex)) && Number(chapter.orderIndex) > 0 ? Number(chapter.orderIndex) : index + 1,
+      durationSec: Number.isFinite(Number(chapter.durationSec)) && Number(chapter.durationSec) > 0 ? Number(chapter.durationSec) : 0,
+      audioAssetKey: String(chapter.audioAssetKey).trim(),
+      transcript: String(chapter.transcript).trim() || null,
+    }));
+  }
+
+  return payload;
 }
 
 export function upsertAudiobookRecord(collection, record) {

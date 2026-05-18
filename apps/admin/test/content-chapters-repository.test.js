@@ -12,3 +12,24 @@ test('chapter repository publishes and unpublishes chapters locally when API is 
 
   assert.equal(unpublished.status, 'draft');
 });
+
+test('chapter repository seeds chapter list for a newly created audiobook', async () => {
+  const repository = createChapterRepository({ adminApi: {} });
+
+  repository.seedChapters('ab-local-999', [
+    {
+      id: 'ch-local-999-001',
+      title: 'Intro',
+      orderIndex: 1,
+      durationSec: 180,
+      audioAssetKey: 'audio/ab-local-999/intro.mp3',
+      transcript: null,
+      status: 'draft',
+    },
+  ]);
+
+  const chapters = await repository.listChapters('ab-local-999');
+
+  assert.equal(chapters.length, 1);
+  assert.equal(chapters[0].title, 'Intro');
+});

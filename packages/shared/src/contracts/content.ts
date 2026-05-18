@@ -71,6 +71,15 @@ export interface AdminCreateAudiobookRequestDto {
   durationSec?: number;
   premiumFlag?: boolean;
   languageCode?: string;
+  chapters?: AdminCreateAudiobookChapterRequestDto[];
+}
+
+export interface AdminCreateAudiobookChapterRequestDto {
+  title: string;
+  orderIndex: number;
+  durationSec?: number;
+  audioAssetKey: string;
+  transcript?: string | null;
 }
 
 export interface AdminUpdateAudiobookRequestDto {

@@ -22,3 +22,13 @@ test('renderAudiobookEditorView disables publish action while busy', () => {
   assert.match(html, /data-editor-save/);
   assert.match(html, /disabled/);
 });
+
+test('renderAudiobookEditorView renders initial chapter editor in create mode', () => {
+  const html = renderAudiobookEditorView({
+    state: createAudiobookEditorState(),
+  });
+
+  assert.match(html, /data-editor-add-chapter/);
+  assert.match(html, /Chapter 1/);
+  assert.match(html, /data-editor-chapter-index="0"/);
+});

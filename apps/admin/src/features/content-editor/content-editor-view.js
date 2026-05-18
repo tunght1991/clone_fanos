@@ -174,6 +174,96 @@ function renderSelectedList(ids, options) {
     : '<span class="empty-inline">Chưa chọn</span>';
 }
 
+function getChapterFieldError(state, chapterIndex, field) {
+  const chapterErrors = Array.isArray(state.errors.chapterErrors) ? state.errors.chapterErrors : [];
+  return chapterErrors.find((entry) => entry.index === chapterIndex)?.errors?.[field] ?? '';
+}
+
+function renderChapterRows(state) {
+  const chapters = Array.isArray(state.draft.chapters) ? state.draft.chapters : [];
+  return chapters
+    .map(
+      (chapter, index) => `
+        <div class="panel chapter-draft">
+            <div class="panel-head chapter-draft-head">
+            <div>
+              <div class="panel-kicker">Chapter ${index + 1}</div>
+              <h3>${escapeHtml(chapter.title || `Chapter ${index + 1}`)}</h3>
+            </div>
+            ${renderButton({
+              label: 'Remove',
+              variant: 'secondary',
+              attrs: {
+                'data-editor-remove-chapter': String(index),
+              },
+            })}
+          </div>
+          <div class="editor-fields">
+            <label class="editor-label">
+              <span>Chapter title</span>
+              <input
+                name="chapterTitle"
+                data-editor-chapter-index="${String(index)}"
+                data-editor-chapter-field="title"
+                value="${escapeHtml(chapter.title)}"
+                placeholder="Nhập chapter title"
+              />
+              ${getChapterFieldError(state, index, 'title') ? `<small class="field-error">${escapeHtml(getChapterFieldError(state, index, 'title'))}</small>` : ''}
+            </label>
+            <div class="two-col">
+              <label class="editor-label">
+                <span>Order</span>
+                <input
+                  name="chapterOrderIndex"
+                  type="number"
+                  min="1"
+                  data-editor-chapter-index="${String(index)}"
+                  data-editor-chapter-field="orderIndex"
+                  value="${escapeHtml(String(chapter.orderIndex))}"
+                />
+                ${getChapterFieldError(state, index, 'orderIndex') ? `<small class="field-error">${escapeHtml(getChapterFieldError(state, index, 'orderIndex'))}</small>` : ''}
+              </label>
+              <label class="editor-label">
+                <span>Duration (sec)</span>
+                <input
+                  name="chapterDurationSec"
+                  type="number"
+                  min="0"
+                  data-editor-chapter-index="${String(index)}"
+                  data-editor-chapter-field="durationSec"
+                  value="${escapeHtml(String(chapter.durationSec))}"
+                />
+                ${getChapterFieldError(state, index, 'durationSec') ? `<small class="field-error">${escapeHtml(getChapterFieldError(state, index, 'durationSec'))}</small>` : ''}
+              </label>
+            </div>
+            <label class="editor-label">
+              <span>Audio asset key</span>
+              <input
+                name="chapterAudioAssetKey"
+                data-editor-chapter-index="${String(index)}"
+                data-editor-chapter-field="audioAssetKey"
+                value="${escapeHtml(chapter.audioAssetKey)}"
+                placeholder="chapters/..."
+              />
+              ${getChapterFieldError(state, index, 'audioAssetKey') ? `<small class="field-error">${escapeHtml(getChapterFieldError(state, index, 'audioAssetKey'))}</small>` : ''}
+            </label>
+            <label class="editor-label">
+              <span>Transcript</span>
+              <textarea
+                name="chapterTranscript"
+                rows="3"
+                data-editor-chapter-index="${String(index)}"
+                data-editor-chapter-field="transcript"
+                placeholder="Transcript optional"
+              >${escapeHtml(chapter.transcript)}</textarea>
+            </label>
+          </div>
+        </div>
+      `,
+    )
+    .join('');
+}
+
 export function renderAudiobookEditorView({ state }) {
   const publishActionBusy = ['saving', 'confirming', 'publishing', 'unpublishing'].includes(state.status);
   const warning = getEditorPublishWarning(state.draft);
@@ -314,6 +404,41 @@ export function renderAudiobookEditorView({ state }) {
               ${renderTagsSummary(state.draft.tagIds, DEMO_TAG_OPTIONS)}
             </div>
           </div>
+
+          ${
+            state.mode === 'create'
+              ? `
+                <div class="panel">
+                  <div class="panel-head">
+                    <div>
+                      <div class="panel-kicker">Initial chapters</div>
+                      <h3>Thêm chapter trong cùng submit</h3>
+                    </div>
+                    ${renderButton({
+                      label: 'Add chapter',
+                      variant: 'secondary',
+                      attrs: { 'data-editor-add-chapter': true },
+                    })}
+                  </div>
+                  ${state.errors.chapters ? `<div class="alert alert-warning">${escapeHtml(state.errors.chapters)}</div>` : ''}
+                  <div class="chapter-draft-list">
+                    ${renderChapterRows(state)}
+                  </div>
+                </div>
+              `
+              : `
+                <div class="panel">
+                  <div class="panel-kicker">Chapters</div>
+                  <p>Chapter hiện được quản lý trong màn riêng sau khi audiobook đã được tạo.</p>
+                  ${renderButton({
+                    label: 'Open chapter editor',
+                    href: state.draft.id ? `#/content/${encodeURIComponent(state.draft.id)}/chapters` : '#/content',
+                    variant: 'secondary',
+                    className: state.draft.id ? '' : 'button-disabled',
+                  })}
+                </div>
+              `
+          }
         </div>
       </section>
 
@@ -344,12 +469,6 @@ export function renderAudiobookEditorView({ state }) {
             `
             : ''
         }
-        ${renderButton({
-          label: 'Next: chapters',
-          href: state.draft.id ? `#/content/${encodeURIComponent(state.draft.id)}/chapters` : '#/content',
-          variant: 'secondary',
-          className: state.draft.id ? '' : 'button-disabled',
-        })}
       </footer>
 
       <div class="editor-footnote">

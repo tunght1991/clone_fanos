@@ -80,8 +80,8 @@ Sản phẩm cần giải quyết hai bài toán chính:
 
 ### 4.2 MVP Admin CMS
 
-- Tạo và cập nhật audiobook
-- Tạo và quản lý chapter
+- Tạo audiobook và cập nhật chapter ban đầu trong cùng một submit
+- Tạo và quản lý chapter sau khi audiobook đã được tạo
 - Quản lý author, narrator, category, tag
 - Publish / unpublish nội dung
 - Quản lý audio asset và metadata
@@ -230,7 +230,7 @@ Sản phẩm cần giải quyết hai bài toán chính:
 - As a user, I want to change playback speed, so that I can listen at my preferred pace.
 - As a user, I want to create bookmarks at specific timestamps, so that I can return to important parts later.
 - As a user, I want to see whether content is premium, so that I know what I can access.
-- As an admin, I want to create audiobooks and chapters and bind asset keys, so that I can manage the content library.
+- As an admin, I want to create an audiobook and its initial chapters in one submit and bind asset keys, so that I can manage the content library atomically.
 - As an admin, I want to publish or unpublish content, so that I can control what is visible to users.
 
 ## 8. Acceptance Criteria
@@ -246,7 +246,7 @@ Sản phẩm cần giải quyết hai bài toán chính:
 
 ### 8.2 Admin CMS
 
-- Admin có thể tạo audiobook mới với metadata đầy đủ.
+- Admin có thể tạo audiobook mới với metadata đầy đủ và chapter ban đầu trong cùng một submit.
 - Admin có thể gán chapter audio asset key và sắp xếp đúng thứ tự.
 - Admin có thể publish / unpublish nội dung.
 - Nội dung đã publish xuất hiện trong app user sau khi index / sync hoàn tất.

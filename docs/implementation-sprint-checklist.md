@@ -179,6 +179,26 @@ Mục tiêu: chuẩn hóa toàn bộ UI theo `DESIGN.md`, ưu tiên đồng bộ
 | Admin UI core screens theo design system | Admin | DONE | Dashboard, content editor, taxonomy và audit trail đã đồng bộ |
 | Accessibility và polish đạt mức chấp nhận | Platform/Mobile/Admin | DONE | Contrast, focus state, spacing và responsive behavior đã được rà lại và chấp nhận |
 
+## Sprint 9: Admin Create Audiobook With Chapters
+
+Mục tiêu: cho phép admin tạo audiobook và chapters trong cùng một submit, lưu atomic vào PostgreSQL, rồi trả về bản ghi tạo mới để tiếp tục publish/index workflow.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Extend shared create-audiobook contract for nested chapters | Shared/API | TODO | `AdminCreateAudiobookRequestDto` cần chứa chapter input với validation strict |
+| Persist audiobook and chapters in one backend transaction | Backend | TODO | `POST /admin/audiobooks` lưu audiobook + chapters atomically và trả DTO tạo mới |
+| Add admin UI for creating audiobook with chapters | Admin | TODO | Form tạo mới nhập metadata + chapter list trong một submit |
+| Wire end-to-end create flow to existing admin navigation | Admin | TODO | Expose rõ đường vào form tạo mới từ CMS hiện tại |
+| Lock regression coverage for read-back and rollback behavior | Backend/Admin/QA | TODO | Verify read-back, rollback khi chapter fail, và no orphan rows |
+
+### Checkpoint Sprint 9
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Create flow lưu atomic vào DB | Backend | TODO | Audiobook + chapters phải cùng lưu hoặc rollback toàn bộ |
+| Admin form submit một lần thành công | Admin | TODO | UI cho phép tạo audiobook và chapters trong một submit |
+| Read-back và rollback ổn định | Backend/QA | TODO | Bản ghi tạo mới đọc lại được, request lỗi không để lại dữ liệu rác |
+
 ## Rủi ro theo dõi xuyên suốt
 
 | Rủi ro | Owner | Status | Ghi chú |

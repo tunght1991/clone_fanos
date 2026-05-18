@@ -72,7 +72,7 @@ export class SubscriptionService {
         receiptToken: request.receiptToken,
         transactionId: request.transactionId,
         orderId: request.orderId,
-        payloadJson: request,
+        payloadJson: request as Record<string, unknown>,
         occurredAt: checkedAt,
       });
 
