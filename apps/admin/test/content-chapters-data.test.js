@@ -4,6 +4,7 @@ import {
   createBlankChapterDraft,
   createChapterManagerState,
   ensureUniqueOrderIndex,
+  getChapterPublishWarning,
   listDemoChapters,
   markChapterUploaded,
   reorderChapterRecords,
@@ -22,13 +23,23 @@ test('listDemoChapters returns chapters sorted by order', () => {
 
 test('createChapterManagerState seeds the next order from existing chapters', () => {
   const state = createChapterManagerState(
-    { id: 'ab-001', title: 'Demo audiobook', authorName: 'Author' },
+    { id: 'ab-001', title: 'Demo audiobook', authorName: 'Author', chapterCount: 12 },
     listDemoChapters('ab-001'),
   );
 
   assert.equal(state.selectedChapterId, 'ch-ab-001-001');
   assert.equal(state.draft.orderIndex, 4);
   assert.equal(state.draft.audiobookId, 'ab-001');
+  assert.equal(state.audiobook.chapterCount, 12);
+});
+
+test('createChapterManagerState falls back to chapter list length when chapterCount is missing', () => {
+  const state = createChapterManagerState(
+    { id: 'ab-001', title: 'Demo audiobook', authorName: 'Author', chapters: listDemoChapters('ab-001') },
+    listDemoChapters('ab-001'),
+  );
+
+  assert.equal(state.audiobook.chapterCount, 3);
 });
 
 test('validateChapterDraft rejects duplicate order and missing audio asset key', () => {
@@ -71,4 +82,17 @@ test('reorderChapterRecords renumbers chapters after moving an item', () => {
     [1, 2, 3],
   );
   assert.equal(reordered[1].id, 'ch-ab-001-003');
+});
+
+test('getChapterPublishWarning stays quiet for a blank draft', () => {
+  const draft = createBlankChapterDraft('ab-001', 1);
+
+  assert.equal(getChapterPublishWarning(draft), '');
+});
+
+test('getChapterPublishWarning warns once a draft has content but no audio asset key', () => {
+  const draft = createBlankChapterDraft('ab-001', 1);
+  draft.title = 'New chapter';
+
+  assert.equal(getChapterPublishWarning(draft), 'Chapter chưa có audio asset key nên chưa nên publish.');
 });

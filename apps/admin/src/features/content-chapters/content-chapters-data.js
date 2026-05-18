@@ -137,13 +137,18 @@ export function createChapterManagerState(audiobook, chapters = []) {
 }
 
 function normalizeAudiobookSummary(audiobook) {
+  const chapterCount = Number(audiobook?.chapterCount);
   return {
     id: String(audiobook?.id ?? ''),
     title: String(audiobook?.title ?? ''),
     authorName: String(audiobook?.authorName ?? audiobook?.author?.name ?? ''),
     premiumFlag: Boolean(audiobook?.premiumFlag),
     status: String(audiobook?.status ?? 'DRAFT').toUpperCase(),
-    chapterCount: Number(audiobook?.chapterCount ?? 0),
+    chapterCount: Number.isFinite(chapterCount)
+      ? chapterCount
+      : Array.isArray(audiobook?.chapters)
+        ? audiobook.chapters.length
+        : 0,
   };
 }
 
@@ -272,7 +277,14 @@ export function ensureUniqueOrderIndex(chapters, draft) {
 }
 
 export function getChapterPublishWarning(draft) {
-  if (!draft.audioAssetKey) {
+  const hasEditableContent = Boolean(
+    String(draft?.id ?? '').trim()
+    || String(draft?.title ?? '').trim()
+    || String(draft?.audioFileName ?? '').trim()
+    || String(draft?.audioPreviewUrl ?? '').trim(),
+  );
+
+  if (hasEditableContent && !draft.audioAssetKey) {
     return 'Chapter chưa có audio asset key nên chưa nên publish.';
   }
 

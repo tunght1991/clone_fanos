@@ -6,11 +6,13 @@ import {
   Param,
   Patch,
   Post,
+  Query,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 
 import { AuthController } from '../modules/auth/index.js';
-import { ContentMutationService } from '../modules/content/index.js';
+import { AdminContentService, ContentMutationService } from '../modules/content/index.js';
 import { AuthContextError, requireRole, resolveRequestPrincipal } from './auth-context.js';
 import {
   parseAdminCreateAudiobookRequest,
@@ -24,6 +26,7 @@ export class AdminHttpController {
   constructor(
     private readonly authController: AuthController,
     private readonly contentMutationService: ContentMutationService,
+    private readonly adminContentService: AdminContentService,
   ) {}
 
   @Get('me')
@@ -37,6 +40,31 @@ export class AdminHttpController {
       displayName: principal.displayName,
       role: principal.role,
     };
+  }
+
+  @Get('audiobooks')
+  async listAudiobooks(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('query') query?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.adminContentService.listAudiobooks({
+      page: normalizePositiveInteger(page, 1),
+      pageSize: Math.min(normalizePositiveInteger(pageSize, 20), 100),
+      query: query ?? '',
+      status: status ?? 'ALL',
+    });
+  }
+
+  @Get('audiobooks/:id')
+  async getAudiobookById(@Param('id') audiobookId: string) {
+    const result = await this.adminContentService.getAudiobookById(audiobookId);
+    if (!result) {
+      throw new NotFoundException(`Audiobook ${audiobookId} not found`);
+    }
+
+    return result;
   }
 
   @Post('audiobooks')
@@ -161,6 +189,7 @@ function mapAdminCreateAudiobookInput(request: ReturnType<typeof parseAdminCreat
     durationSec: request.durationSec ?? 0,
     premiumFlag: request.premiumFlag ?? false,
     languageCode: request.languageCode ?? 'vi',
+    chapters: request.chapters?.map(mapAdminCreateAudiobookChapterInput) ?? [],
   };
 }
 
@@ -187,6 +216,18 @@ function mapAdminCreateChapterInput(request: ReturnType<typeof parseAdminCreateC
   };
 }
 
+function mapAdminCreateAudiobookChapterInput(
+  request: NonNullable<ReturnType<typeof parseAdminCreateAudiobookRequest>['chapters']>[number],
+) {
+  return {
+    title: request.title,
+    orderIndex: request.orderIndex,
+    durationSec: request.durationSec ?? 0,
+    audioAssetKey: request.audioAssetKey,
+    transcript: request.transcript ?? null,
+  };
+}
+
 function mapAdminUpdateChapterInput(request: ReturnType<typeof parseAdminUpdateChapterRequest>) {
   return {
     title: request.title,
@@ -195,4 +236,17 @@ function mapAdminUpdateChapterInput(request: ReturnType<typeof parseAdminUpdateC
     audioAssetKey: request.audioAssetKey,
     transcript: request.transcript ?? null,
   };
+}
+
+function normalizePositiveInteger(value: string | undefined, fallback: number): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
 }

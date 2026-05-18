@@ -5,6 +5,7 @@ import { AuthController, AuthService, AuthTokenService, createAuthRepositoryBund
 import { AnalyticsController, AnalyticsService, createAnalyticsRepositoryBundle } from './modules/analytics/index.js';
 import { AssetAccessService, createAssetAccessServiceConfig } from './modules/assets/index.js';
 import {
+  AdminContentService,
   ContentController,
   ContentAuditService,
   ContentMutationService,
@@ -58,6 +59,7 @@ export function bootstrapApiRuntime() {
   const contentAuditService = new ContentAuditService(contentAuditRepositories.contentAuditRepository);
   const contentService = new ContentService(contentRepositories);
   const contentController = new ContentController(contentService);
+  const adminContentService = new AdminContentService(database);
   const engagementRepositories = createEngagementRepositoryBundle(database);
   const engagementService = new EngagementService({
     repositories: engagementRepositories,
@@ -89,6 +91,11 @@ export function bootstrapApiRuntime() {
         await searchReindexService.reindexPublishedAudiobook(input.audiobookId);
       },
     },
+    transaction: async (work) =>
+      database.withTransaction(async (client) => {
+        const transactionRepositories = createContentRepositoryBundle(client);
+        return work(transactionRepositories);
+      }),
   });
   const analyticsRepositories = createAnalyticsRepositoryBundle(database);
   const analyticsService = new AnalyticsService({
@@ -119,6 +126,7 @@ export function bootstrapApiRuntime() {
     contentAuditService,
     contentService,
     contentController,
+    adminContentService,
     engagementRepositories,
     engagementService,
     engagementController,

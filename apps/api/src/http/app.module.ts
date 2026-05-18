@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { bootstrapApiRuntime } from '../main.js';
 import { AuthController } from '../modules/auth/index.js';
 import { AnalyticsController } from '../modules/analytics/index.js';
-import { ContentAuditService, ContentController, ContentMutationService } from '../modules/content/index.js';
+import { AdminContentService, ContentAuditService, ContentController, ContentMutationService } from '../modules/content/index.js';
 import { EngagementController } from '../modules/engagement/index.js';
 import { PlaybackController } from '../modules/playback/index.js';
 import { SearchController, SearchReindexService } from '../modules/search/index.js';
@@ -42,6 +42,11 @@ import { AssetAccessService } from '../modules/assets/index.js';
     {
       provide: ContentController,
       useFactory: (runtime: ReturnType<typeof bootstrapApiRuntime>) => runtime.contentController,
+      inject: [API_RUNTIME_TOKEN],
+    },
+    {
+      provide: AdminContentService,
+      useFactory: (runtime: ReturnType<typeof bootstrapApiRuntime>) => runtime.adminContentService,
       inject: [API_RUNTIME_TOKEN],
     },
     {

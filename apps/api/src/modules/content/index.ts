@@ -4,6 +4,7 @@ export * from './content.controller.js';
 export * from './content.audit.repository.js';
 export * from './content.audit.types.js';
 export * from './content.admin.dto.js';
+export * from './admin-content.service.js';
 export * from './content.mutation.service.js';
 export * from './content.mutation.types.js';
 export * from './content.repository.js';

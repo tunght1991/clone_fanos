@@ -20,6 +20,29 @@ function normalizeRecord(record) {
   };
 }
 
+function unwrapAudiobookResponse(response) {
+  const wrapperKeys = ['data', 'audiobook', 'record', 'result', 'payload', 'item'];
+  const visited = new Set();
+  let current = response?.data ?? response;
+
+  while (current && typeof current === 'object' && !Array.isArray(current) && !visited.has(current)) {
+    visited.add(current);
+
+    if (current.id != null) {
+      return current;
+    }
+
+    const nextKey = wrapperKeys.find((key) => current[key] && typeof current[key] === 'object' && !Array.isArray(current[key]));
+    if (!nextKey) {
+      return current;
+    }
+
+    current = current[nextKey];
+  }
+
+  return current;
+}
+
 export function createAudiobookEditorRepository({
   adminApi = createAdminApi(),
   seedRecords = listDemoAudiobookRecords(),
@@ -66,7 +89,20 @@ export function createAudiobookEditorRepository({
         }
 
         const response = await adminApi.createAudiobook(payload);
-        const record = normalizeRecord(response?.data ?? response);
+        const recordFromApi = unwrapAudiobookResponse(response);
+        const record = normalizeRecord({
+          ...recordFromApi,
+          chapterCount: Number.isFinite(Number(recordFromApi?.chapterCount))
+            ? Number(recordFromApi.chapterCount)
+            : Array.isArray(recordFromApi?.chapters)
+              ? recordFromApi.chapters.length
+              : Array.isArray(payload.chapters)
+                ? payload.chapters.length
+                : state.draft.chapterCount,
+          chapters: Array.isArray(recordFromApi?.chapters)
+            ? recordFromApi.chapters
+            : payload.chapters,
+        });
         if (record) {
           records = upsertAudiobookRecord(records, record);
           return record;
@@ -77,7 +113,7 @@ export function createAudiobookEditorRepository({
         }
 
         const response = await adminApi.updateAudiobook(id, payload);
-        const record = normalizeRecord(response?.data ?? response);
+        const record = normalizeRecord(unwrapAudiobookResponse(response));
         if (record) {
           records = upsertAudiobookRecord(records, record);
           return record;
@@ -96,6 +132,7 @@ export function createAudiobookEditorRepository({
       status: currentRecord.status ?? 'DRAFT',
       publishedAt: currentRecord.publishedAt ?? null,
       chapterCount: currentRecord.chapterCount ?? 0,
+      chapters: currentRecord.chapters ?? payload.chapters ?? state.draft.chapters,
       narrators: currentRecord.narrators ?? state.draft.narrators,
       categoryIds: currentRecord.categoryIds ?? state.draft.categoryIds,
       tagIds: currentRecord.tagIds ?? state.draft.tagIds,
@@ -116,7 +153,7 @@ export function createAudiobookEditorRepository({
       }
 
       const response = await adminApi.publishAudiobook(id);
-      const record = normalizeRecord(response?.data ?? response);
+      const record = normalizeRecord(unwrapAudiobookResponse(response));
       if (record) {
         records = upsertAudiobookRecord(records, record);
         return record;
@@ -146,7 +183,7 @@ export function createAudiobookEditorRepository({
       }
 
       const response = await adminApi.unpublishAudiobook(id);
-      const record = normalizeRecord(response?.data ?? response);
+      const record = normalizeRecord(unwrapAudiobookResponse(response));
       if (record) {
         records = upsertAudiobookRecord(records, record);
         return record;
