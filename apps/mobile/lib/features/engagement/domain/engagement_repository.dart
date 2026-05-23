@@ -1,5 +1,4 @@
 import '../../../app/app_config.dart';
-import 'package:flutter/foundation.dart';
 import 'engagement_models.dart';
 import '../data/http_engagement_repository.dart';
 import '../data/mock_engagement_repository.dart';
@@ -54,8 +53,8 @@ abstract class EngagementRepository {
   });
 }
 
-EngagementRepository createEngagementRepository(AppConfig config, {bool? isWeb}) {
-  if (shouldUseMockRepositories(config, isWeb: isWeb)) {
+EngagementRepository createEngagementRepository(AppConfig config) {
+  if (shouldUseMockRepositories(config)) {
     return MockEngagementRepository();
   }
 

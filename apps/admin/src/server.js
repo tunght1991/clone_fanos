@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const rootDir = fileURLToPath(new URL('..', import.meta.url));
 const indexPath = join(rootDir, 'index.html');
 const port = Number(process.env.PORT ?? 4173);
+const apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000';
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -28,6 +29,20 @@ async function readAsset(filePath) {
 const server = createServer(async (req, res) => {
   const requestUrl = new URL(req.url ?? '/', 'http://localhost');
   const pathname = requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
+
+  if (pathname === '/config.js') {
+    const body = `window.__ADMIN_CONFIG__ = ${JSON.stringify({
+      API_BASE_URL: apiBaseUrl,
+    })};\n`;
+
+    res.writeHead(200, {
+      'Content-Type': 'application/javascript; charset=utf-8',
+      'Cache-Control': 'no-store',
+    });
+    res.end(body);
+    return;
+  }
+
   const assetPath = join(rootDir, pathname);
   const filePath = extname(assetPath) ? assetPath : indexPath;
   const body = await readAsset(filePath);

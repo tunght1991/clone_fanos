@@ -25,7 +25,6 @@ import type { SearchRepositoryBundle } from '../modules/search/search.repository
 import type { SearchRepositoryQuery, SearchRepositoryResult } from '../modules/search/search.types.js';
 import {
   parseAdminCreateAudiobookRequest,
-  parseAdminCreateChapterRequest,
   parseAuthLoginRequest,
   parseAuthRegisterRequest,
   parsePlaybackProgressRequest,
@@ -56,6 +55,7 @@ test('API smoke flow covers auth, content ops, browse, search, playback and audi
         smokeState.reindexEvents.push(input);
       },
     },
+    transaction: async (work) => work(smokeState.contentRepositories),
   });
   const contentService = new ContentService(smokeState.contentRepositories);
   const contentController = new ContentController(contentService);
@@ -106,21 +106,25 @@ test('API smoke flow covers auth, content ops, browse, search, playback and audi
       durationSec: 3600,
       premiumFlag: true,
       languageCode: 'VI',
+      chapters: [
+        {
+          title: 'Chapter 1',
+          orderIndex: 1,
+          durationSec: 900,
+          audioAssetKey: 'audio/atomic-habits/ch1.mp3',
+          transcript: 'Habit loops are built from cue, craving, response, and reward.',
+        },
+      ],
     }),
   );
 
-  const chapter = await contentMutationService.createChapter(
-    parseAdminCreateChapterRequest({
-      audiobookId: audiobook.id,
-      title: 'Chapter 1',
-      orderIndex: 1,
-      durationSec: 900,
-      audioAssetKey: 'audio/atomic-habits/ch1.mp3',
-      transcript: 'Habit loops are built from cue, craving, response, and reward.',
-    }),
-  );
+  assert.equal(audiobook.chapterCount, 1);
+  assert.equal(audiobook.chapters.length, 1);
+  assert.equal(audiobook.chapters[0].title, 'Chapter 1');
 
   const publishedAudiobook = await contentMutationService.publishAudiobook(audiobook.id, 'trace-smoke-1');
+  const chapter = (await smokeState.contentRepositories.chapterRepository.findByAudiobookId(audiobook.id))[0];
+  assert.ok(chapter);
   const publishedChapter = await contentMutationService.publishChapter(chapter.id, 'trace-smoke-2');
 
   assert.equal(publishedAudiobook.status, 'published');

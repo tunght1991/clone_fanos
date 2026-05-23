@@ -177,6 +177,7 @@ test('ContentMutationService enqueues audiobook reindex after audiobook update',
         calls.push(input);
       },
     },
+    transaction: async (work) => work(createRepositoryBundle()),
   });
 
   const audiobook = await service.updateAudiobook({
@@ -222,6 +223,7 @@ test('ContentMutationService creates audiobook draft without enqueueing reindex'
         calls.push(input);
       },
     },
+    transaction: async (work) => work(createRepositoryBundle()),
   });
 
   const audiobook = await service.createAudiobook({
@@ -235,7 +237,94 @@ test('ContentMutationService creates audiobook draft without enqueueing reindex'
   });
 
   assert.equal(audiobook.title, 'New Book');
+  assert.equal(audiobook.chapterCount, 0);
+  assert.deepEqual(audiobook.chapters, []);
   assert.equal(calls.length, 0);
+});
+
+test('ContentMutationService creates audiobook chapters within the same transaction', async () => {
+  const createdChapters: Array<{ title: string; orderIndex: number }> = [];
+  const repositoryBundle = createRepositoryBundle();
+  repositoryBundle.chapterRepository.createChapter = async (input) => {
+    createdChapters.push({ title: input.title, orderIndex: input.orderIndex });
+    return {
+      id: `chapter-${createdChapters.length}`,
+      audiobookId: input.audiobookId,
+      title: input.title,
+      orderIndex: input.orderIndex,
+      durationSec: input.durationSec,
+      audioAssetKey: input.audioAssetKey,
+      transcript: input.transcript,
+      status: 'draft',
+      createdAt: new Date('2026-05-10T00:00:00.000Z'),
+      updatedAt: new Date('2026-05-11T00:00:00.000Z'),
+    };
+  };
+
+  const service = new ContentMutationService({
+    repositories: repositoryBundle,
+    auditLogger: {
+      async record() {
+        return {
+          id: 'audit-1',
+          entityType: 'audiobook',
+          entityId: 'book-1',
+          entityTitle: 'Book',
+          action: 'publish',
+          actorUserId: null,
+          actorRole: null,
+          traceId: null,
+          payloadJson: {},
+          createdAt: new Date('2026-05-11T00:00:00.000Z'),
+        };
+      },
+      async listByEntity() {
+        return [];
+      },
+    },
+    reindexQueue: {
+      async enqueueAudiobookReindex() {
+        // no-op
+      },
+    },
+    transaction: async (work) => work(repositoryBundle),
+  });
+
+  const audiobook = await service.createAudiobook({
+    title: 'New Book',
+    description: null,
+    coverImageAssetKey: 'covers/new-book.jpg',
+    authorId: 'author-1',
+    durationSec: 0,
+    premiumFlag: false,
+    languageCode: 'vi',
+    chapters: [
+      {
+        title: 'Intro',
+        orderIndex: 1,
+        durationSec: 120,
+        audioAssetKey: 'chapters/book-1/intro.mp3',
+        transcript: null,
+      },
+      {
+        title: 'Deep dive',
+        orderIndex: 2,
+        durationSec: 240,
+        audioAssetKey: 'chapters/book-1/deep-dive.mp3',
+        transcript: 'Section 2',
+      },
+    ],
+  });
+
+  assert.equal(audiobook.title, 'New Book');
+  assert.equal(audiobook.chapterCount, 2);
+  assert.equal(audiobook.chapters.length, 2);
+  assert.equal(audiobook.chapters[0].title, 'Intro');
+  assert.equal(audiobook.chapters[1].title, 'Deep dive');
+  assert.deepEqual(createdChapters, [
+    { title: 'Intro', orderIndex: 1 },
+    { title: 'Deep dive', orderIndex: 2 },
+  ]);
 });
 
 test('ContentMutationService creates chapter after validating audiobook exists', async () => {
@@ -266,6 +355,7 @@ test('ContentMutationService creates chapter after validating audiobook exists',
         calls.push(input);
       },
     },
+    transaction: async (work) => work(createRepositoryBundle()),
   });
 
   const chapter = await service.createChapter({
@@ -309,6 +399,7 @@ test('ContentMutationService enqueues audiobook reindex after chapter publish', 
         calls.push(input);
       },
     },
+    transaction: async (work) => work(createRepositoryBundle()),
   });
 
   const chapter = await service.publishChapter('chapter-1');
@@ -345,6 +436,7 @@ test('ContentMutationService enqueues audiobook reindex after chapter unpublish'
         calls.push(input);
       },
     },
+    transaction: async (work) => work(createRepositoryBundle()),
   });
 
   const chapter = await service.unpublishChapter('chapter-1');
@@ -386,6 +478,7 @@ test('ContentMutationService records audit log for audiobook publish and unpubli
         // no-op
       },
     },
+    transaction: async (work) => work(createRepositoryBundle()),
   });
 
   await service.publishAudiobook('book-1', 'trace-99');

@@ -176,6 +176,8 @@ PATCH /admin/chapters/:id/publish
 PATCH /admin/chapters/:id/unpublish
 ```
 
+`POST /admin/audiobooks` MAY accept nested initial chapters in the same request. When chapters are included, the backend should persist audiobook + chapters atomically so the create flow stays all-or-nothing.
+
 ### 6.8 Analytics
 
 ```text

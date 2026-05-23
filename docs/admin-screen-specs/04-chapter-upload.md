@@ -2,12 +2,12 @@
 
 ## 1. Mục tiêu
 
-Cho admin tạo chapter theo thứ tự, gắn audio asset, và kiểm soát trạng thái chapter.
+Cho admin thêm và quản lý chapter sau khi audiobook đã được tạo, gắn audio asset, và kiểm soát trạng thái chapter.
 
 ## 2. Entry / Exit
 
 ### Entry
-- Từ audiobook editor
+- Từ audiobook editor sau submit đầu tiên
 - Từ dashboard vào audiobook có sẵn
 
 ### Exit

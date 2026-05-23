@@ -65,4 +65,5 @@ export interface ContentMutationServiceDependencies {
   repositories: ContentMutationRepositoryBundle;
   auditLogger: ContentAuditLogger;
   reindexQueue: ContentReindexQueue;
+  transaction<T>(work: (repositories: ContentMutationRepositoryBundle) => Promise<T>): Promise<T>;
 }

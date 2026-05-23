@@ -1,17 +1,17 @@
 import 'dart:convert';
-import 'dart:io';
 
+import '../../../core/network/api_transport.dart';
 import '../domain/analytics_models.dart';
 import '../domain/analytics_repository.dart';
 
 class HttpAnalyticsRepository implements AnalyticsRepository {
   final Uri baseUri;
-  final HttpClient _client;
+  final ApiTransport _transport;
 
   HttpAnalyticsRepository({
     required this.baseUri,
-    HttpClient? client,
-  }) : _client = client ?? HttpClient();
+    ApiTransport? transport,
+  }) : _transport = transport ?? createApiTransport();
 
   @override
   Future<void> trackEvent({
@@ -19,23 +19,25 @@ class HttpAnalyticsRepository implements AnalyticsRepository {
     required String? userId,
     required String? accessToken,
   }) async {
-    final request = await _client.postUrl(baseUri.resolve('/analytics/events'));
-    request.headers.contentType = ContentType.json;
-    if (accessToken != null && accessToken.isNotEmpty) {
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $accessToken');
-    }
-    if (userId != null && userId.isNotEmpty) {
-      request.headers.set('x-user-id', userId);
-    }
-    request.write(
-      jsonEncode({
+    final uri = baseUri.resolve('/analytics/events');
+    final response = await _transport.postJson(
+      uri,
+      <String, dynamic>{
         'events': [event.toJson()],
-      }),
+      },
+      headers: <String, String>{
+        if (accessToken != null && accessToken.isNotEmpty)
+          'Authorization': 'Bearer $accessToken',
+        if (userId != null && userId.isNotEmpty) 'x-user-id': userId,
+      },
     );
-    final response = await request.close();
-    final payload = await utf8.decoder.bind(response).join();
     if (response.statusCode >= 400) {
-      throw HttpException('Request failed: ${response.statusCode} $payload');
+      throw ApiException(
+        method: 'POST',
+        uri: uri,
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
   }
 }

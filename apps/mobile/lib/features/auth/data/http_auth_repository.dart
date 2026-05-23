@@ -1,17 +1,17 @@
 import 'dart:convert';
-import 'dart:io';
 
+import '../../../core/network/api_transport.dart';
 import '../domain/auth_models.dart';
 import '../domain/auth_repository.dart';
 
 class HttpAuthRepository implements AuthRepository {
   final Uri baseUri;
-  final HttpClient _client;
+  final ApiTransport _transport;
 
   HttpAuthRepository({
     required this.baseUri,
-    HttpClient? client,
-  }) : _client = client ?? HttpClient();
+    ApiTransport? transport,
+  }) : _transport = transport ?? createApiTransport();
 
   @override
   Future<AuthSession> login({
@@ -67,48 +67,61 @@ class HttpAuthRepository implements AuthRepository {
     return _parseUser(response['user'] as Map<String, dynamic>? ?? response);
   }
 
-  Future<AuthSession> _postAuthSession(String path, Map<String, dynamic> body) async {
+  Future<AuthSession> _postAuthSession(
+      String path, Map<String, dynamic> body) async {
     final json = await _postJson(path, body);
     return _parseSession(json);
   }
 
-  Future<Map<String, dynamic>> _postJson(String path, Map<String, dynamic> body) async {
-    final request = await _client.postUrl(baseUri.resolve(path));
-    request.headers.contentType = ContentType.json;
-    request.write(jsonEncode(body));
-    final response = await request.close();
-    final payload = await utf8.decoder.bind(response).join();
+  Future<Map<String, dynamic>> _postJson(
+      String path, Map<String, dynamic> body) async {
+    final uri = baseUri.resolve(path);
+    final response = await _transport.postJson(uri, body);
 
     if (response.statusCode >= 400) {
-      throw HttpException('Request failed: ${response.statusCode} $payload');
+      throw ApiException(
+        method: 'POST',
+        uri: uri,
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
 
-    if (payload.trim().isEmpty) {
+    if (response.body.trim().isEmpty) {
       return <String, dynamic>{};
     }
 
-    return jsonDecode(payload) as Map<String, dynamic>;
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>?> _getJson(String path, {required String accessToken}) async {
-    final request = await _client.getUrl(baseUri.resolve(path));
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $accessToken');
-    final response = await request.close();
-    final payload = await utf8.decoder.bind(response).join();
+  Future<Map<String, dynamic>?> _getJson(String path,
+      {required String accessToken}) async {
+    final uri = baseUri.resolve(path);
+    final response = await _transport.get(
+      uri,
+      headers: <String, String>{
+        'Authorization': 'Bearer $accessToken',
+      },
+    );
 
-    if (response.statusCode == HttpStatus.notFound) {
+    if (response.statusCode == 404) {
       return null;
     }
 
     if (response.statusCode >= 400) {
-      throw HttpException('Request failed: ${response.statusCode} $payload');
+      throw ApiException(
+        method: 'GET',
+        uri: uri,
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
 
-    if (payload.trim().isEmpty) {
+    if (response.body.trim().isEmpty) {
       return null;
     }
 
-    return jsonDecode(payload) as Map<String, dynamic>;
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   AuthSession _parseSession(Map<String, dynamic> json) {
@@ -116,23 +129,15 @@ class HttpAuthRepository implements AuthRepository {
       tokenType: json['tokenType'] as String? ?? 'Bearer',
       accessToken: json['accessToken'] as String? ?? '',
       refreshToken: json['refreshToken'] as String? ?? '',
-      expiresAt: DateTime.parse(json['expiresAt'] as String? ?? DateTime.now().toIso8601String()),
+      expiresAt: DateTime.parse(
+          json['expiresAt'] as String? ?? DateTime.now().toIso8601String()),
       refreshExpiresAt: DateTime.parse(
         json['refreshExpiresAt'] as String? ?? DateTime.now().toIso8601String(),
       ),
-      user: _parseUser((json['user'] as Map<String, dynamic>?) ?? const <String, dynamic>{}),
+      user: _parseUser(
+          (json['user'] as Map<String, dynamic>?) ?? const <String, dynamic>{}),
     );
   }
 
-  AuthUser _parseUser(Map<String, dynamic> json) {
-    return AuthUser(
-      id: json['id'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-      displayName: json['displayName'] as String? ?? '',
-      avatarAssetKey: json['avatarAssetKey'] as String?,
-      role: (json['role'] as String? ?? 'user') == 'admin' ? AuthRole.admin : AuthRole.user,
-      isActive: json['isActive'] as bool? ?? true,
-    );
-  }
+  AuthUser _parseUser(Map<String, dynamic> json) => AuthUser.fromJson(json);
 }
-

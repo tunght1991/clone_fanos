@@ -1,4 +1,5 @@
 import '../../features/auth/domain/auth_models.dart';
+import 'session_store_io.dart' if (dart.library.html) 'session_store_web.dart';
 
 abstract class SessionStore {
   Future<AuthSession?> read();
@@ -23,3 +24,4 @@ class InMemorySessionStore implements SessionStore {
   }
 }
 
+SessionStore createSessionStore() => createPlatformSessionStore();

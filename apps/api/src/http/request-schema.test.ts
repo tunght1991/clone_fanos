@@ -78,6 +78,37 @@ test('parseAdminCreateAudiobookRequest requires strict audiobook metadata', () =
   });
 });
 
+test('parseAdminCreateAudiobookRequest accepts nested initial chapters', () => {
+  const request = parseAdminCreateAudiobookRequest({
+    title: 'Atomic Habits',
+    description: 'Habit changes',
+    coverImageAssetKey: 'covers/atomic-habits.jpg',
+    authorId: 'author-1',
+    durationSec: 3600,
+    premiumFlag: true,
+    languageCode: 'vi',
+    chapters: [
+      {
+        title: 'Getting started',
+        orderIndex: 1,
+        durationSec: 600,
+        audioAssetKey: 'chapters/atomic-habits/ch-1.mp3',
+        transcript: 'Intro',
+      },
+    ],
+  });
+
+  assert.deepEqual(request.chapters, [
+    {
+      title: 'Getting started',
+      orderIndex: 1,
+      durationSec: 600,
+      audioAssetKey: 'chapters/atomic-habits/ch-1.mp3',
+      transcript: 'Intro',
+    },
+  ]);
+});
+
 test('parseAdminCreateChapterRequest rejects invalid chapter payloads', () => {
   assert.throws(
     () =>
@@ -250,7 +281,7 @@ test('parseAssetAccessRequest normalizes asset access payloads', () => {
     assetKey: 'chapters/book-1/ch-1.mp3',
     kind: 'AUDIO',
     purpose: 'STREAM',
-    offlineCapable: true,
+    offlineCapable: false,
   });
 });
 

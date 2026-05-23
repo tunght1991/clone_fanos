@@ -66,15 +66,33 @@ class _HomeShellState extends State<HomeShell> {
               ),
             ],
           ),
-          body: IndexedStack(
-            index: _index,
+          body: Column(
             children: [
-              _HomeTab(
-                appState: widget.appState,
-                onJumpToSearch: () => setState(() => _index = 1),
+              if (widget.appState.subscriptionRefreshError != null)
+                _SubscriptionRefreshBanner(
+                  message: 'Subscription info needs a refresh.',
+                  onDismiss: widget.appState.clearSubscriptionRefreshError,
+                  onRetry: () async {
+                    try {
+                      await widget.appState.refreshSubscription();
+                    } catch (_) {
+                      // The banner stays visible because the state still carries the error.
+                    }
+                  },
+                ),
+              Expanded(
+                child: IndexedStack(
+                  index: _index,
+                  children: [
+                    _HomeTab(
+                      appState: widget.appState,
+                      onJumpToSearch: () => setState(() => _index = 1),
+                    ),
+                    _SearchTab(appState: widget.appState),
+                    _ProfileTab(appState: widget.appState),
+                  ],
+                ),
               ),
-              _SearchTab(appState: widget.appState),
-              _ProfileTab(appState: widget.appState),
             ],
           ),
           bottomNavigationBar: NavigationBar(
@@ -88,6 +106,52 @@ class _HomeShellState extends State<HomeShell> {
           ),
         );
       },
+    );
+  }
+}
+
+class _SubscriptionRefreshBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onDismiss;
+  final Future<void> Function() onRetry;
+
+  const _SubscriptionRefreshBanner({
+    required this.message,
+    required this.onDismiss,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: CloneFanosTokens.secondary.withOpacity(0.10),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: Row(
+            children: [
+              const Icon(Icons.sync_problem_outlined),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              TextButton(
+                onPressed: onDismiss,
+                child: const Text('Dismiss'),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () => onRetry(),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

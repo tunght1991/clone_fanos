@@ -36,6 +36,15 @@ pnpm.cmd migrate
 pnpm.cmd start
 ```
 
+## Dev login
+
+Môi trường development tự bootstrap tài khoản admin mặc định:
+
+- Email: `admin@fonos.test`
+- Password: `Secret123!`
+
+Nếu cần đổi, set `ADMIN_BOOTSTRAP_EMAIL`, `ADMIN_BOOTSTRAP_PASSWORD`, và `ADMIN_BOOTSTRAP_DISPLAY_NAME` trong `.env`.
+
 ## Ghi chú kiến trúc
 
 - Controller chỉ xử lý request/response

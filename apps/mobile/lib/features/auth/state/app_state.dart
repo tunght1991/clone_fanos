@@ -29,6 +29,7 @@ class AppState extends ChangeNotifier {
   AppPhase _phase = AppPhase.booting;
   bool _busy = false;
   String? _errorMessage;
+  String? _subscriptionRefreshError;
   AuthSession? _session;
   SubscriptionState? _subscription;
 
@@ -49,6 +50,7 @@ class AppState extends ChangeNotifier {
   AppPhase get phase => _phase;
   bool get isBusy => _busy;
   String? get errorMessage => _errorMessage;
+  String? get subscriptionRefreshError => _subscriptionRefreshError;
   AuthSession? get session => _session;
   AuthUser? get currentUser => _session?.user;
   SubscriptionState? get currentSubscription => _subscription;
@@ -57,16 +59,31 @@ class AppState extends ChangeNotifier {
     _setBusy(true);
     try {
       final onboardingCompleted = await onboardingStore.isCompleted();
-      _session = await sessionStore.read();
-      _phase = _session != null
-          ? AppPhase.authenticated
-          : (onboardingCompleted ? AppPhase.unauthenticated : AppPhase.onboarding);
-      if (_session != null) {
-        await refreshSubscription();
-      } else {
+      final storedSession = await sessionStore.read();
+      if (storedSession == null) {
+        _session = null;
         _subscription = null;
+        _errorMessage = null;
+        _subscriptionRefreshError = null;
+        _phase = onboardingCompleted
+            ? AppPhase.unauthenticated
+            : AppPhase.onboarding;
+      } else {
+        final restoredSession = await _restoreSession(storedSession);
+        if (restoredSession == null) {
+          _session = null;
+          _subscription = null;
+          _errorMessage = null;
+          _subscriptionRefreshError = null;
+          _phase = onboardingCompleted
+              ? AppPhase.unauthenticated
+              : AppPhase.onboarding;
+        } else {
+          _session = restoredSession;
+          _phase = AppPhase.authenticated;
+          await _syncSubscriptionAfterAuth();
+        }
       }
-      _errorMessage = null;
       unawaited(
         trackAnalyticsEvent(
           'app_opened',
@@ -87,7 +104,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> completeOnboarding() async {
     await onboardingStore.markCompleted();
-    _phase = _session != null ? AppPhase.authenticated : AppPhase.unauthenticated;
+    _phase =
+        _session != null ? AppPhase.authenticated : AppPhase.unauthenticated;
     _errorMessage = null;
     notifyListeners();
   }
@@ -97,14 +115,15 @@ class AppState extends ChangeNotifier {
     required String password,
   }) async {
     _errorMessage = null;
+    _subscriptionRefreshError = null;
     _setBusy(true);
     try {
-      final session = await authRepository.login(email: email, password: password);
+      final session =
+          await authRepository.login(email: email, password: password);
       await sessionStore.write(session);
       _session = session;
       _phase = AppPhase.authenticated;
-      await refreshSubscription();
-      _errorMessage = null;
+      await _syncSubscriptionAfterAuth();
     } catch (error) {
       _errorMessage = error.toString();
     } finally {
@@ -118,6 +137,7 @@ class AppState extends ChangeNotifier {
     required String password,
   }) async {
     _errorMessage = null;
+    _subscriptionRefreshError = null;
     _setBusy(true);
     try {
       final session = await authRepository.register(
@@ -128,8 +148,7 @@ class AppState extends ChangeNotifier {
       await sessionStore.write(session);
       _session = session;
       _phase = AppPhase.authenticated;
-      await refreshSubscription();
-      _errorMessage = null;
+      await _syncSubscriptionAfterAuth();
     } catch (error) {
       _errorMessage = error.toString();
     } finally {
@@ -152,6 +171,7 @@ class AppState extends ChangeNotifier {
       await sessionStore.clear();
       _session = null;
       _subscription = null;
+      _subscriptionRefreshError = null;
       _phase = AppPhase.unauthenticated;
       _errorMessage = null;
     } finally {
@@ -162,17 +182,55 @@ class AppState extends ChangeNotifier {
   Future<SubscriptionState?> refreshSubscription() async {
     if (_session == null) {
       _subscription = null;
+      _subscriptionRefreshError = null;
       notifyListeners();
       return null;
     }
 
-    final subscription = await subscriptionRepository.getMySubscription(
-      userId: _session!.user.id,
-      accessToken: _session!.accessToken,
-    );
-    _subscription = subscription;
-    notifyListeners();
-    return subscription;
+    try {
+      final subscription = await subscriptionRepository.getMySubscription(
+        userId: _session!.user.id,
+        accessToken: _session!.accessToken,
+      );
+      _subscription = subscription;
+      _subscriptionRefreshError = null;
+      notifyListeners();
+      return subscription;
+    } catch (error) {
+      _subscription = null;
+      _subscriptionRefreshError = error.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> _syncSubscriptionAfterAuth() async {
+    try {
+      await refreshSubscription();
+    } catch (_) {}
+  }
+
+  Future<AuthSession?> _restoreSession(AuthSession storedSession) async {
+    final now = DateTime.now().toUtc();
+    if (storedSession.expiresAt.isAfter(now)) {
+      return storedSession;
+    }
+
+    if (storedSession.refreshExpiresAt.isBefore(now)) {
+      await sessionStore.clear();
+      return null;
+    }
+
+    try {
+      final refreshedSession = await authRepository.refresh(
+        refreshToken: storedSession.refreshToken,
+      );
+      await sessionStore.write(refreshedSession);
+      return refreshedSession;
+    } catch (_) {
+      await sessionStore.clear();
+      return null;
+    }
   }
 
   Future<void> trackAnalyticsEvent(
@@ -197,6 +255,11 @@ class AppState extends ChangeNotifier {
 
   void clearError() {
     _errorMessage = null;
+    notifyListeners();
+  }
+
+  void clearSubscriptionRefreshError() {
+    _subscriptionRefreshError = null;
     notifyListeners();
   }
 

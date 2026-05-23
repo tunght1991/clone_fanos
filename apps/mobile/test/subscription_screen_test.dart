@@ -8,6 +8,7 @@ import 'package:clone_fanos_mobile/features/analytics/data/mock_analytics_reposi
 import 'package:clone_fanos_mobile/features/engagement/data/mock_engagement_repository.dart';
 import 'package:clone_fanos_mobile/features/player/data/mock_player_repository.dart';
 import 'package:clone_fanos_mobile/features/subscription/data/mock_subscription_repository.dart';
+import 'package:clone_fanos_mobile/features/subscription/domain/subscription_models.dart';
 import 'package:clone_fanos_mobile/features/subscription/presentation/subscription_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -72,4 +73,53 @@ void main() {
       ]),
     );
   });
+
+  testWidgets('Subscription screen shows and dismisses subscription refresh banner', (tester) async {
+    final appState = AppState(
+      authRepository: MockAuthRepository(),
+      contentRepository: MockDiscoveryRepository(),
+      playerRepository: MockPlayerRepository(),
+      engagementRepository: MockEngagementRepository(),
+      subscriptionRepository: _FailingSubscriptionRepository(),
+      analyticsRepository: MockAnalyticsRepository(),
+      onboardingStore: InMemoryOnboardingStore(),
+      sessionStore: InMemorySessionStore(),
+    );
+
+    await appState.bootstrap();
+    await appState.completeOnboarding();
+    await appState.login(
+      email: 'demo@clonefanos.local',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      AppScope(
+        appState: appState,
+        child: MaterialApp(
+          home: SubscriptionScreen(appState: appState),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Subscription info needs a refresh.'), findsOneWidget);
+    expect(appState.subscriptionRefreshError, isNotNull);
+
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Subscription info needs a refresh.'), findsNothing);
+    expect(appState.subscriptionRefreshError, isNull);
+  });
+}
+
+class _FailingSubscriptionRepository extends MockSubscriptionRepository {
+  @override
+  Future<SubscriptionState?> getMySubscription({
+    required String? userId,
+    required String? accessToken,
+  }) async {
+    throw StateError('subscription refresh failed');
+  }
 }

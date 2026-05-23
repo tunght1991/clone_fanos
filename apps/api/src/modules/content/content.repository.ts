@@ -98,7 +98,7 @@ export interface ContentRepositoryBundle {
 }
 
 export function createContentRepositoryBundle(
-  database: DatabaseConnection,
+  database: DatabaseExecutor,
 ): ContentRepositoryBundle {
   return {
     audiobookRepository: new PostgresAudiobookRepository(database),

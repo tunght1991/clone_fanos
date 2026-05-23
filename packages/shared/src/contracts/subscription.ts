@@ -64,7 +64,7 @@ export function canTransitionSubscriptionFlow(
   from: SubscriptionFlowState,
   to: SubscriptionFlowState,
 ): boolean {
-  return SUBSCRIPTION_FLOW_TRANSITIONS[from].includes(to);
+  return (SUBSCRIPTION_FLOW_TRANSITIONS[from] as readonly SubscriptionFlowState[]).includes(to);
 }
 
 export function resolveSubscriptionFlowState(snapshot: SubscriptionFlowSnapshot): SubscriptionFlowState {

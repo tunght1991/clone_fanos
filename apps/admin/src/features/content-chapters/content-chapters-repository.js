@@ -201,6 +201,17 @@ export function createChapterRepository({
     return ensureUniqueOrderIndex(snapshot(audiobookId), draft);
   }
 
+  function seedChapters(audiobookId, chapters) {
+    const normalized = sortChapterRecords(
+      (Array.isArray(chapters) ? chapters : []).map((chapter) => ({
+        ...chapter,
+        audiobookId,
+      })),
+    );
+    recordsByAudiobookId.set(audiobookId, normalized);
+    return snapshot(audiobookId);
+  }
+
   return {
     listChapters,
     saveChapter,
@@ -210,5 +221,6 @@ export function createChapterRepository({
     getChapter,
     getInitialState,
     ensureDraftOrder,
+    seedChapters,
   };
 }

@@ -2,7 +2,7 @@
 
 ## 1. Mục tiêu
 
-Cho admin tạo, sửa và hoàn thiện metadata audiobook trước khi publish.
+Cho admin tạo audiobook, metadata và chapter ban đầu trong cùng một submit trước khi publish.
 
 ## 2. Entry / Exit
 
@@ -12,7 +12,6 @@ Cho admin tạo, sửa và hoàn thiện metadata audiobook trước khi publish
 
 ### Exit
 - Quay lại dashboard
-- Đi sang chapter upload
 - Đi sang publish workflow
 
 ## 3. UI Components
@@ -24,8 +23,9 @@ Cho admin tạo, sửa và hoàn thiện metadata audiobook trước khi publish
 - Premium flag toggle
 - Language code selector
 - Status badge
+- Chapter list editor
 - Save draft button
-- Next: chapters button
+- Publish later button
 
 ## 4. UI States
 
@@ -39,7 +39,7 @@ Cho admin tạo, sửa và hoàn thiện metadata audiobook trước khi publish
 ## 5. API Mapping
 
 - `GET /admin/audiobooks/:id`
-- `POST /admin/audiobooks`
+- `POST /admin/audiobooks` with nested initial chapters
 - `PATCH /admin/audiobooks/:id`
 - `PATCH /admin/audiobooks/:id/publish`
 - `PATCH /admin/audiobooks/:id/unpublish`

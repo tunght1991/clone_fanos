@@ -92,7 +92,9 @@ export function renderChapterManagerView({ state }) {
   const audiobookId = state.audiobook?.id ?? state.draft.audiobookId ?? '';
   const warning = getChapterPublishWarning(state.draft);
   const selectedChapter = state.chapters.find((chapter) => chapter.id === state.selectedChapterId) ?? null;
-  const chapterCount = state.chapters.length;
+  const chapterCount = Number.isFinite(Number(state.audiobook?.chapterCount))
+    ? Number(state.audiobook.chapterCount)
+    : state.chapters.length;
   const selectedLabel = selectedChapter ? selectedChapter.title : 'Draft chapter';
   const publishActionsDisabled = ['saving', 'uploading', 'confirming', 'publishing', 'unpublishing'].includes(state.status);
 

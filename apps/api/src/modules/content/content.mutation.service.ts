@@ -2,6 +2,11 @@ import type { ContentMutationServiceDependencies } from './content.mutation.type
 import type { ContentReindexReason } from './content.mutation.types.js';
 import type { AudiobookRow, ChapterRow } from './content.types.js';
 
+export interface AdminCreateAudiobookResponse extends AudiobookRow {
+  chapters: ChapterRow[];
+  chapterCount: number;
+}
+
 export class ContentMutationService {
   constructor(private readonly dependencies: ContentMutationServiceDependencies) {}
 
@@ -13,8 +18,42 @@ export class ContentMutationService {
     durationSec: number;
     premiumFlag: boolean;
     languageCode: string;
-  }): Promise<AudiobookRow> {
-    return this.dependencies.repositories.audiobookRepository.createAudiobook(input);
+    chapters?: Array<{
+      title: string;
+      orderIndex: number;
+      durationSec: number;
+      audioAssetKey: string;
+      transcript: string | null;
+    }>;
+  }): Promise<AdminCreateAudiobookResponse> {
+    const audiobookInput = {
+      title: input.title,
+      description: input.description,
+      coverImageAssetKey: input.coverImageAssetKey,
+      authorId: input.authorId,
+      durationSec: input.durationSec,
+      premiumFlag: input.premiumFlag,
+      languageCode: input.languageCode,
+    };
+
+    return this.dependencies.transaction(async (repositories) => {
+      const audiobook = await repositories.audiobookRepository.createAudiobook(audiobookInput);
+      const chapters: ChapterRow[] = [];
+
+      for (const chapterInput of input.chapters ?? []) {
+        const chapter = await repositories.chapterRepository.createChapter({
+          audiobookId: audiobook.id,
+          ...chapterInput,
+        });
+        chapters.push(chapter);
+      }
+
+      return {
+        ...audiobook,
+        chapters,
+        chapterCount: chapters.length,
+      };
+    });
   }
 
   async createChapter(input: {

@@ -2,14 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../auth/state/app_state.dart';
-import '../audio/player_audio_controller.dart';
-import '../../engagement/domain/engagement_models.dart';
-import '../../discovery/domain/discovery_models.dart';
-import '../../player/domain/player_models.dart';
-import '../../subscription/domain/subscription_models.dart';
-import '../../../shared/ui/clone_fanos_primitives.dart';
 import '../../../app/app_theme.dart';
+import '../../../shared/ui/clone_fanos_primitives.dart';
+import '../../auth/state/app_state.dart';
+import '../../discovery/domain/discovery_models.dart';
+import '../../engagement/domain/engagement_models.dart';
+import '../audio/player_audio_controller.dart';
+import '../audio/player_audio_controller_base.dart';
+import '../domain/player_models.dart';
+import 'player_screen_logic.dart';
+
+typedef PlayerAudioControllerFactory = PlayerAudioControllerBase Function({
+  void Function()? onEnded,
+  void Function(Object error)? onError,
+});
 
 class PlayerScreen extends StatefulWidget {
   final AppState appState;
@@ -18,6 +24,7 @@ class PlayerScreen extends StatefulWidget {
   final String? initialChapterId;
   final int? initialPositionMs;
   final bool autoplay;
+  final PlayerAudioControllerFactory? audioControllerFactory;
 
   const PlayerScreen({
     super.key,
@@ -27,6 +34,7 @@ class PlayerScreen extends StatefulWidget {
     this.initialChapterId,
     this.initialPositionMs,
     this.autoplay = true,
+    this.audioControllerFactory,
   });
 
   @override
@@ -53,10 +61,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
-    _audioController = PlayerAudioController(
-      onEnded: _handleAudioEnded,
-      onError: _handleAudioError,
-    );
+    _audioController = widget.audioControllerFactory?.call(
+          onEnded: _handleAudioEnded,
+          onError: _handleAudioError,
+        ) ??
+        PlayerAudioController(
+          onEnded: _handleAudioEnded,
+          onError: _handleAudioError,
+        );
     widget.appState.addListener(_handleAppStateChanged);
     _bootstrapFuture = _loadInitialData();
   }
@@ -78,7 +90,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<_LoadedPlayerData> _loadInitialData() async {
-    final detail = widget.initialDetail ?? await widget.appState.contentRepository.getAudiobookDetail(widget.audiobookId);
+    final detail = widget.initialDetail ??
+        await widget.appState.contentRepository
+            .getAudiobookDetail(widget.audiobookId);
     if (detail == null) {
       throw StateError('Audiobook not found');
     }
@@ -91,13 +105,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
       userId: widget.appState.currentUserId,
       accessToken: widget.appState.accessToken,
     );
-    final preferredChapterId = widget.initialChapterId ?? resumeProgress?.chapterId;
+    final preferredChapterId =
+        widget.initialChapterId ?? resumeProgress?.chapterId;
     final chapter = detail.chapters.firstWhere(
       (item) => item.id == preferredChapterId,
       orElse: () => detail.chapters.first,
     );
-    final initialPosition = widget.initialPositionMs ?? resumeProgress?.positionMs ?? 0;
-    final assetAccess = await widget.appState.playerRepository.getChapterAssetAccess(
+    final initialPosition =
+        widget.initialPositionMs ?? resumeProgress?.positionMs ?? 0;
+    final assetAccess =
+        await widget.appState.playerRepository.getChapterAssetAccess(
       audioAssetKey: chapter.audioAssetKey,
       userId: widget.appState.currentUserId,
       accessToken: widget.appState.accessToken,
@@ -114,7 +131,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   bool _isPremiumLocked(_LoadedPlayerData data) {
     final subscription = widget.appState.currentSubscription;
-    return data.detail.premiumFlag && !(subscription?.entitlement.canAccessPremium ?? false);
+    return data.detail.premiumFlag &&
+        !(subscription?.entitlement.canAccessPremium ?? false);
+  }
+
+  void _stopTimers() {
+    _tickTimer?.cancel();
+    _syncTimer?.cancel();
   }
 
   Future<void> _prepareAudioSource() {
@@ -149,20 +172,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
 
-    _tickTimer?.cancel();
-    _syncTimer?.cancel();
-    unawaited(() async {
-      final currentPositionMs = await _readPlaybackPositionMs();
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _positionMs = currentPositionMs;
-        _status = PlayerStatus.ended;
-      });
-      unawaited(_syncProgress(completed: true));
-    }());
+    _stopTimers();
+    unawaited(_handlePlaybackCompleted());
   }
 
   void _handleAudioError(Object error) {
@@ -192,11 +203,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
 
+    final restartFromBeginning = _status == PlayerStatus.ended &&
+        _positionMs >= data.chapter.durationSec * 1000;
+
     setState(() {
       _status = PlayerStatus.buffering;
     });
 
     try {
+      if (restartFromBeginning) {
+        _positionMs = 0;
+      }
       await _prepareAudioSource();
       await _audioController.setPlaybackRate(_speed);
       await _audioController.seek(Duration(milliseconds: _positionMs));
@@ -232,10 +249,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
     _firstPlayTriggered = true;
 
-    _tickTimer?.cancel();
+    _stopTimers();
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
-    _syncTimer?.cancel();
-    _syncTimer = Timer.periodic(const Duration(seconds: 5), (_) => _syncProgress());
+    _syncTimer =
+        Timer.periodic(const Duration(seconds: 5), (_) => _syncProgress());
   }
 
   Future<void> _pausePlayback({bool sync = true}) async {
@@ -244,8 +261,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
 
-    _tickTimer?.cancel();
-    _syncTimer?.cancel();
+    _stopTimers();
     final currentPositionMs = await _readPlaybackPositionMs();
     if (mounted) {
       setState(() {
@@ -253,21 +269,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
       });
     }
     await _audioController.pause();
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _status = PlayerStatus.paused;
     });
-    if (data != null) {
-      unawaited(
-        widget.appState.trackAnalyticsEvent(
-          'playback_paused',
-          payload: {
-            'audiobookId': data.detail.id,
-            'chapterId': data.chapter.id,
-            'positionMs': currentPositionMs,
-          },
-        ),
-      );
-    }
+
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        'playback_paused',
+        payload: {
+          'audiobookId': data.detail.id,
+          'chapterId': data.chapter.id,
+          'positionMs': currentPositionMs,
+        },
+      ),
+    );
+
     if (sync) {
       await _syncProgress();
     }
@@ -337,18 +356,45 @@ class _PlayerScreenState extends State<PlayerScreen> {
     setState(() {
       _positionMs = update.positionMs;
       _sleepTimer = update.sleepTimer;
-      if (update.completed) {
-        _status = PlayerStatus.ended;
-      }
     });
 
     if (update.completed) {
-      _tickTimer?.cancel();
-      _syncTimer?.cancel();
-      unawaited(_syncProgress(completed: true));
+      _stopTimers();
+      unawaited(_handlePlaybackCompleted());
     } else if (update.shouldPause) {
       unawaited(_pausePlayback());
     }
+  }
+
+  Future<void> _handlePlaybackCompleted() async {
+    final data = _data;
+    if (data == null) {
+      return;
+    }
+
+    final nextChapter = findAdjacentPlayableChapter(
+      data.detail.chapters,
+      data.chapter.id,
+      direction: 1,
+    );
+
+    await _syncProgress(completed: true);
+    if (!mounted) {
+      return;
+    }
+
+    if (nextChapter == null) {
+      setState(() {
+        _status = PlayerStatus.ended;
+      });
+      return;
+    }
+
+    await _switchChapter(
+      nextChapter,
+      autoPlay: true,
+      syncCurrentProgress: false,
+    );
   }
 
   void _seekTo(int positionMs) {
@@ -392,9 +438,57 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
-  Future<void> _switchChapter(AudiobookChapter chapter) async {
+  Future<void> _goToAdjacentChapter(int direction) async {
     final data = _data;
     if (data == null) {
+      return;
+    }
+
+    final nextChapter = findAdjacentPlayableChapter(
+      data.detail.chapters,
+      data.chapter.id,
+      direction: direction,
+    );
+
+    if (nextChapter == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(direction > 0
+              ? 'No next chapter available'
+              : 'No previous chapter available'),
+        ),
+      );
+      return;
+    }
+
+    await _switchChapter(
+      nextChapter,
+      autoPlay:
+          _status == PlayerStatus.playing || _status == PlayerStatus.ended,
+      syncCurrentProgress: true,
+    );
+  }
+
+  Future<void> _switchChapter(
+    AudiobookChapter chapter, {
+    required bool autoPlay,
+    required bool syncCurrentProgress,
+  }) async {
+    final data = _data;
+    if (data == null) {
+      return;
+    }
+
+    if (syncCurrentProgress) {
+      await _syncProgress(completed: _status == PlayerStatus.ended);
+    }
+
+    _stopTimers();
+    await _audioController.pause();
+    if (!mounted) {
       return;
     }
 
@@ -403,7 +497,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
 
     try {
-      final assetAccess = await widget.appState.playerRepository.getChapterAssetAccess(
+      final assetAccess =
+          await widget.appState.playerRepository.getChapterAssetAccess(
         audioAssetKey: chapter.audioAssetKey,
         userId: widget.appState.currentUserId,
         accessToken: widget.appState.accessToken,
@@ -413,12 +508,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       setState(() {
-        _data = data.copyWith(chapter: chapter, assetAccess: assetAccess, initialPositionMs: 0);
+        _data = data.copyWith(
+          chapter: chapter,
+          assetAccess: assetAccess,
+          initialPositionMs: 0,
+        );
         _assetAccess = assetAccess;
         _positionMs = 0;
-        _status = chapter.status == 'PUBLISHED' ? PlayerStatus.paused : PlayerStatus.error;
+        _loadedAudioUrl = null;
+        _status = isPlayableChapter(chapter)
+            ? PlayerStatus.paused
+            : PlayerStatus.error;
       });
-      unawaited(_prepareAudioSource());
+
+      await _prepareAudioSource();
+      if (autoPlay && mounted) {
+        await _startPlayback();
+      }
     } catch (error) {
       if (!mounted) {
         return;
@@ -433,7 +539,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<int> _readPlaybackPositionMs() async {
     final data = _data;
     final audioPositionMs = await _audioController.readCurrentPositionMs();
-    final chapterDurationMs = data?.chapter.durationSec == null ? 0 : data!.chapter.durationSec * 1000;
+    final chapterDurationMs = data?.chapter.durationSec == null
+        ? 0
+        : data!.chapter.durationSec * 1000;
     return resolvePlaybackPosition(
       estimatedPositionMs: _positionMs,
       audioPositionMs: audioPositionMs,
@@ -441,9 +549,46 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
+  Future<String?> _promptBookmarkNote() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add bookmark note'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              hintText: 'Optional note',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    return result;
+  }
+
   Future<void> _createBookmark() async {
     final data = _data;
     if (data == null || _isPremiumLocked(data)) {
+      return;
+    }
+
+    final note = await _promptBookmarkNote();
+    if (note == null) {
       return;
     }
 
@@ -453,10 +598,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           audiobookId: data.detail.id,
           chapterId: data.chapter.id,
           positionMs: _positionMs,
+          note: note.trim().isEmpty ? null : note.trim(),
         ),
         userId: widget.appState.currentUserId,
-          accessToken: widget.appState.accessToken,
-        );
+        accessToken: widget.appState.accessToken,
+      );
 
       unawaited(
         widget.appState.trackAnalyticsEvent(
@@ -475,7 +621,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('?? l?u bookmark t?i ${_formatPosition(_positionMs)}'),
+          content: Text('Bookmark saved at ${_formatPosition(_positionMs)}'),
         ),
       );
     } catch (error) {
@@ -484,7 +630,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Kh?ng l?u ???c bookmark: $error')),
+        SnackBar(content: Text('Could not save bookmark: $error')),
       );
     }
   }
@@ -515,9 +661,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (snapshot.hasError) {
             return _PlayerStateView(
               icon: Icons.error_outline,
-              title: 'Kh?ng m? ???c player',
+              title: 'Player unavailable',
               description: snapshot.error.toString(),
-              actionLabel: 'Quay l?i',
+              actionLabel: 'Go back',
               onAction: () => Navigator.of(context).pop(),
             );
           }
@@ -529,8 +675,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (_data == null) {
             _data = snapshot.data!;
             _assetAccess = _data!.assetAccess;
-            _positionMs = _data!.initialPositionMs.clamp(0, _data!.chapter.durationSec * 1000);
-            _status = _isPremiumLocked(_data!) ? PlayerStatus.locked : PlayerStatus.paused;
+            _positionMs = _data!.initialPositionMs
+                .clamp(0, _data!.chapter.durationSec * 1000);
+            _status = _isPremiumLocked(_data!)
+                ? PlayerStatus.locked
+                : PlayerStatus.paused;
             if (!_hasLoadedData) {
               _hasLoadedData = true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -550,15 +699,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
 
           final data = _data!;
-          final displayStatus = _status == PlayerStatus.locked && !_isPremiumLocked(data)
-              ? PlayerStatus.paused
-              : _status;
+          final displayStatus =
+              _status == PlayerStatus.locked && !_isPremiumLocked(data)
+                  ? PlayerStatus.paused
+                  : _status;
+
           if (_isPremiumLocked(data)) {
             return _PlayerStateView(
               icon: Icons.lock_outline,
               title: 'Premium locked',
-              description: 'Nội dung này yêu cầu gói đăng ký. Hãy nâng cấp để tiếp tục nghe.',
-              actionLabel: 'Quay l?i',
+              description: 'This content requires an active subscription.',
+              actionLabel: 'Go back',
               onAction: () => Navigator.of(context).pop(),
             );
           }
@@ -566,6 +717,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (_assetAccess == null) {
             return const Center(child: CircularProgressIndicator());
           }
+
+          final transcriptEntries = parseTranscript(data.chapter.transcript);
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -589,16 +742,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         chapterDurationMs: data.chapter.durationSec * 1000,
                         speed: _speed,
                         sleepTimer: _sleepTimer,
+                        hasPreviousChapter: findAdjacentPlayableChapter(
+                              data.detail.chapters,
+                              data.chapter.id,
+                              direction: -1,
+                            ) !=
+                            null,
+                        hasNextChapter: findAdjacentPlayableChapter(
+                              data.detail.chapters,
+                              data.chapter.id,
+                              direction: 1,
+                            ) !=
+                            null,
                         onPlayPause: () {
                           if (_status == PlayerStatus.playing) {
                             unawaited(_pausePlayback());
                           } else {
-                            _startPlayback();
+                            unawaited(_startPlayback());
                           }
                         },
                         onSeek: _seekTo,
                         onSkipBackward: () => _skipBy(-15000),
                         onSkipForward: () => _skipBy(15000),
+                        onPreviousChapter: () =>
+                            unawaited(_goToAdjacentChapter(-1)),
+                        onNextChapter: () => unawaited(_goToAdjacentChapter(1)),
                         onSpeedChanged: _setSpeed,
                         onSleepTimerChanged: _setSleepTimer,
                       ),
@@ -606,13 +774,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       _ChapterPicker(
                         chapters: data.detail.chapters,
                         activeChapterId: data.chapter.id,
-                        onChapterSelected: _switchChapter,
+                        onChapterSelected: (chapter) {
+                          unawaited(
+                            _switchChapter(
+                              chapter,
+                              autoPlay: _status == PlayerStatus.playing ||
+                                  _status == PlayerStatus.ended,
+                              syncCurrentProgress: true,
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      _TranscriptSection(
+                        chapterTitle: data.chapter.title,
+                        transcriptEntries: transcriptEntries,
+                        currentPositionMs: _positionMs,
+                        onSeek: _seekTo,
                       ),
                       if (_errorMessage != null) ...[
                         const SizedBox(height: 20),
                         _PlayerStateView(
                           icon: Icons.cloud_off_outlined,
-                          title: 'Progress sync retry',
+                          title: 'Sync retry needed',
                           description: _errorMessage!,
                           actionLabel: 'Retry sync',
                           onAction: () => _syncProgress(),
@@ -630,7 +814,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 }
 
-enum PlayerStatus { loading, buffering, playing, paused, ended, error, offline, locked }
+enum PlayerStatus {
+  loading,
+  buffering,
+  playing,
+  paused,
+  ended,
+  error,
+  offline,
+  locked
+}
 
 class _LoadedPlayerData {
   final AudiobookDetail detail;
@@ -694,7 +887,8 @@ PlaybackTickUpdate advancePlaybackTick({
   required Duration? sleepTimer,
 }) {
   final incrementMs = (1000 * speed).round();
-  final nextPositionMs = (currentPositionMs + incrementMs).clamp(0, chapterDurationMs);
+  final nextPositionMs =
+      (currentPositionMs + incrementMs).clamp(0, chapterDurationMs);
   final completed = nextPositionMs >= chapterDurationMs;
 
   Duration? nextSleepTimer = sleepTimer;
@@ -733,11 +927,11 @@ class _PlayerHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-      return Card(
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
+    return Card(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
             colors: [
               CloneFanosTokens.primary.withOpacity(0.08),
               theme.colorScheme.surface,
@@ -746,60 +940,78 @@ class _PlayerHeader extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
         ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final stacked = constraints.maxWidth < 420;
-                  final header = Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Now playing', style: theme.textTheme.labelLarge?.copyWith(color: CloneFanosTokens.secondary)),
-                      const SizedBox(height: 6),
-                      Text(detail.title, style: theme.textTheme.headlineMedium),
-                      const SizedBox(height: 4),
-                      Text(chapter.title, style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          CloneFanosStatusChip(label: status.name),
-                          CloneFanosStatusChip(label: assetAccess.provider),
-                          CloneFanosStatusChip(label: assetAccess.streamable ? 'streamable' : 'download-only'),
-                          if (assetAccess.offlineCapable) const CloneFanosStatusChip(label: 'offline-ready'),
-                        ],
-                      ),
-                    ],
-                  );
-
-                  if (stacked) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked = constraints.maxWidth < 420;
+                final header = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Now playing',
+                      style: theme.textTheme.labelLarge
+                          ?.copyWith(color: CloneFanosTokens.secondary),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(detail.title, style: theme.textTheme.headlineMedium),
+                    const SizedBox(height: 4),
+                    Text(chapter.title, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        Center(child: CloneFanosCoverBadge(title: detail.title, premiumFlag: detail.premiumFlag, large: true)),
-                        const SizedBox(height: 16),
-                        header,
+                        CloneFanosStatusChip(label: status.name),
+                        CloneFanosStatusChip(label: assetAccess.provider),
+                        CloneFanosStatusChip(
+                            label: assetAccess.streamable
+                                ? 'streamable'
+                                : 'download-only'),
+                        if (assetAccess.offlineCapable)
+                          const CloneFanosStatusChip(label: 'offline-ready'),
                       ],
-                    );
-                  }
+                    ),
+                  ],
+                );
 
-                  return Row(
+                if (stacked) {
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CloneFanosCoverBadge(title: detail.title, premiumFlag: detail.premiumFlag, large: true),
-                      const SizedBox(width: 20),
-                      Expanded(child: header),
+                      Center(
+                        child: CloneFanosCoverBadge(
+                          title: detail.title,
+                          premiumFlag: detail.premiumFlag,
+                          large: true,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      header,
                     ],
                   );
-                },
-              ),
-            ],
-          ),
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CloneFanosCoverBadge(
+                      title: detail.title,
+                      premiumFlag: detail.premiumFlag,
+                      large: true,
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(child: header),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
-      );
+      ),
+    );
   }
 }
 
@@ -809,10 +1021,14 @@ class _PlaybackControls extends StatelessWidget {
   final int chapterDurationMs;
   final double speed;
   final Duration? sleepTimer;
+  final bool hasPreviousChapter;
+  final bool hasNextChapter;
   final VoidCallback onPlayPause;
   final ValueChanged<int> onSeek;
   final VoidCallback onSkipBackward;
   final VoidCallback onSkipForward;
+  final VoidCallback onPreviousChapter;
+  final VoidCallback onNextChapter;
   final ValueChanged<double> onSpeedChanged;
   final ValueChanged<Duration?> onSleepTimerChanged;
 
@@ -822,10 +1038,14 @@ class _PlaybackControls extends StatelessWidget {
     required this.chapterDurationMs,
     required this.speed,
     required this.sleepTimer,
+    required this.hasPreviousChapter,
+    required this.hasNextChapter,
     required this.onPlayPause,
     required this.onSeek,
     required this.onSkipBackward,
     required this.onSkipForward,
+    required this.onPreviousChapter,
+    required this.onNextChapter,
     required this.onSpeedChanged,
     required this.onSleepTimerChanged,
   });
@@ -862,6 +1082,23 @@ class _PlaybackControls extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: hasPreviousChapter ? onPreviousChapter : null,
+                  icon: const Icon(Icons.skip_previous),
+                  label: const Text('Previous chapter'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: hasNextChapter ? onNextChapter : null,
+                  icon: const Icon(Icons.skip_next),
+                  label: const Text('Next chapter'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             LayoutBuilder(
               builder: (context, constraints) {
                 final stacked = constraints.maxWidth < 360;
@@ -873,8 +1110,11 @@ class _PlaybackControls extends StatelessWidget {
                   ),
                   FilledButton.tonalIcon(
                     onPressed: onPlayPause,
-                    icon: Icon(status == PlayerStatus.playing ? Icons.pause : Icons.play_arrow),
-                    label: Text(status == PlayerStatus.playing ? 'Pause' : 'Play'),
+                    icon: Icon(status == PlayerStatus.playing
+                        ? Icons.pause
+                        : Icons.play_arrow),
+                    label:
+                        Text(status == PlayerStatus.playing ? 'Pause' : 'Play'),
                   ),
                   IconButton(
                     tooltip: 'Skip forward',
@@ -907,15 +1147,13 @@ class _PlaybackControls extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _SpeedMenu(
-                  value: speed,
-                  onChanged: onSpeedChanged,
-                ),
+                _SpeedMenu(value: speed, onChanged: onSpeedChanged),
                 _SleepTimerMenu(
-                  current: sleepTimer,
-                  onChanged: onSleepTimerChanged,
-                ),
-                CloneFanosStatusChip(label: status == PlayerStatus.ended ? 'ended' : 'background-ready'),
+                    current: sleepTimer, onChanged: onSleepTimerChanged),
+                CloneFanosStatusChip(
+                    label: status == PlayerStatus.ended
+                        ? 'ended'
+                        : 'background-ready'),
               ],
             ),
           ],
@@ -1010,7 +1248,8 @@ class _ChapterPicker extends StatelessWidget {
                   child: Text('${chapter.orderIndex}'),
                 ),
                 title: Text(chapter.title),
-                subtitle: Text('${_formatDuration(chapter.durationSec)} • ${chapter.status}'),
+                subtitle: Text(
+                    '${_formatDuration(chapter.durationSec)} | ${chapter.status}'),
                 trailing: chapter.id == activeChapterId
                     ? const Icon(Icons.play_arrow)
                     : const Icon(Icons.chevron_right),
@@ -1021,6 +1260,121 @@ class _ChapterPicker extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TranscriptSection extends StatelessWidget {
+  final String chapterTitle;
+  final List<TranscriptEntry> transcriptEntries;
+  final int currentPositionMs;
+  final ValueChanged<int> onSeek;
+
+  const _TranscriptSection({
+    required this.chapterTitle,
+    required this.transcriptEntries,
+    required this.currentPositionMs,
+    required this.onSeek,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final activeIndex =
+        _activeTranscriptIndex(transcriptEntries, currentPositionMs);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Transcript', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(chapterTitle, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 12),
+            if (transcriptEntries.isEmpty)
+              Text(
+                'No transcript is available for this chapter.',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: transcriptEntries.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final entry = transcriptEntries[index];
+                  final selected = index == activeIndex;
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: entry.timestamp == null
+                        ? null
+                        : () => onSeek(entry.timestamp!.inMilliseconds),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? theme.colorScheme.primaryContainer
+                                .withOpacity(0.6)
+                            : theme.colorScheme.surfaceContainerHighest
+                                .withOpacity(0.35),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: selected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outlineVariant,
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (entry.timestamp != null)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: CloneFanosStatusChip(
+                                label:
+                                    formatTranscriptTimestamp(entry.timestamp!),
+                                accentColor: selected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.secondary,
+                              ),
+                            )
+                          else
+                            const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              entry.text,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: selected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+int _activeTranscriptIndex(
+    List<TranscriptEntry> entries, int currentPositionMs) {
+  var activeIndex = -1;
+  for (var index = 0; index < entries.length; index += 1) {
+    final timestamp = entries[index].timestamp;
+    if (timestamp != null && timestamp.inMilliseconds <= currentPositionMs) {
+      activeIndex = index;
+    }
+  }
+  return activeIndex;
 }
 
 class _PlayerStateView extends StatelessWidget {
@@ -1065,9 +1419,12 @@ class _PlayerStateView extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(title, style: theme.textTheme.titleLarge),
                   const SizedBox(height: 8),
-                  Text(description, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+                  Text(description,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium),
                   const SizedBox(height: 16),
-                  FilledButton.tonal(onPressed: onAction, child: Text(actionLabel)),
+                  FilledButton.tonal(
+                      onPressed: onAction, child: Text(actionLabel)),
                 ],
               ),
             ),

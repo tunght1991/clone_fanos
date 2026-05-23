@@ -18,6 +18,7 @@ import {
   resolveCorsOrigin,
 } from './hardening.js';
 import { createGracefulShutdownHandler } from './shutdown.js';
+import { ensureDevelopmentAdminUser } from '../modules/auth/auth.seed.js';
 import type { ApiRuntime } from '../main.js';
 
 export async function bootstrapNestHttpServer(): Promise<void> {
@@ -28,6 +29,14 @@ export async function bootstrapNestHttpServer(): Promise<void> {
   const shutdown = createGracefulShutdownHandler(app, runtime);
   const nodeEnv = process.env.NODE_ENV ?? process.env.APP_ENV ?? 'development';
   const allowedCorsOrigins = parseCorsOrigins(process.env.API_CORS_ORIGINS, nodeEnv);
+
+  if (nodeEnv === 'development' || process.env.APP_ENV === 'development') {
+    await ensureDevelopmentAdminUser(runtime.database, {
+      email: process.env.ADMIN_BOOTSTRAP_EMAIL,
+      password: process.env.ADMIN_BOOTSTRAP_PASSWORD,
+      displayName: process.env.ADMIN_BOOTSTRAP_DISPLAY_NAME,
+    });
+  }
 
   app.use(json({ limit: '1mb' }));
   app.use(urlencoded({ extended: false, limit: '1mb', parameterLimit: 100 }));

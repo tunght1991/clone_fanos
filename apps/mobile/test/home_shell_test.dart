@@ -138,6 +138,44 @@ void main() {
     expect(eventNames, contains('search_filter_changed'));
   });
 
+  testWidgets('Home shell shows and dismisses subscription refresh banner', (tester) async {
+    final appState = AppState(
+      authRepository: MockAuthRepository(),
+      contentRepository: MockDiscoveryRepository(),
+      playerRepository: MockPlayerRepository(),
+      engagementRepository: MockEngagementRepository(),
+      subscriptionRepository: _FailingSubscriptionRepository(),
+      onboardingStore: InMemoryOnboardingStore(),
+      sessionStore: InMemorySessionStore(),
+    );
+
+    await appState.bootstrap();
+    await appState.completeOnboarding();
+    await appState.login(
+      email: 'demo@clonefanos.local',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      AppScope(
+        appState: appState,
+        child: MaterialApp(
+          home: HomeShell(appState: appState),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Subscription info needs a refresh.'), findsOneWidget);
+    expect(appState.subscriptionRefreshError, isNotNull);
+
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Subscription info needs a refresh.'), findsNothing);
+    expect(appState.subscriptionRefreshError, isNull);
+  });
+
   testWidgets('Home shell unlocks premium detail after entitlement refresh', (tester) async {
     final analyticsRepository = MockAnalyticsRepository();
     final subscriptionRepository = MockSubscriptionRepository();
@@ -211,4 +249,14 @@ void main() {
     expect(find.text('Start listening'), findsOneWidget);
     expect(find.text('Premium locked'), findsNothing);
   });
+}
+
+class _FailingSubscriptionRepository extends MockSubscriptionRepository {
+  @override
+  Future<SubscriptionState?> getMySubscription({
+    required String? userId,
+    required String? accessToken,
+  }) async {
+    throw StateError('subscription refresh failed');
+  }
 }

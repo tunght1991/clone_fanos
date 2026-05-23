@@ -15,11 +15,14 @@ import {
 import { createAudiobookEditorRepository } from './features/content-editor/content-editor-repository.js';
 import {
   createAudiobookEditorState,
+  addAudiobookEditorChapter,
   toggleAudiobookEditorCategory,
   toggleAudiobookEditorTag,
+  removeAudiobookEditorChapter,
   updateAudiobookEditorAuthor,
   updateAudiobookEditorCover,
   updateAudiobookEditorField,
+  updateAudiobookEditorChapterField,
   updateAudiobookEditorNarratorSlot,
   validateAudiobookEditorState,
 } from './features/content-editor/content-editor-data.js';
@@ -1005,6 +1008,33 @@ export function createAdminApp({
     };
   }
 
+  function unwrapAudiobookRecord(record) {
+    const wrapperKeys = ['data', 'audiobook', 'record', 'result', 'payload', 'item'];
+    const visited = new Set();
+    let current = record;
+
+    while (current && typeof current === 'object' && !Array.isArray(current) && !visited.has(current)) {
+      visited.add(current);
+
+      if (current.id != null) {
+        return current;
+      }
+
+      const nextKey = wrapperKeys.find((key) => current[key] && typeof current[key] === 'object' && !Array.isArray(current[key]));
+      if (!nextKey) {
+        return current;
+      }
+
+      current = current[nextKey];
+    }
+
+    return current;
+  }
+
+  function resolveAudiobookRecordId(record) {
+    return record?.id ?? record?.data?.id ?? record?.audiobook?.id ?? record?.record?.id ?? '';
+  }
+
   function bindAudiobookEditorActions(routeState) {
     const form = rootElement.querySelector('[data-editor-form]');
     if (!form) {
@@ -1033,19 +1063,27 @@ export function createAdminApp({
           id: editorState.draft.id,
           state: editorState,
         });
+        const normalizedSavedRecord = unwrapAudiobookRecord(savedRecord);
+        const savedAudiobookId = String(resolveAudiobookRecordId(normalizedSavedRecord)).trim();
+        if (!savedAudiobookId) {
+          throw new Error('Không thể lưu audiobook vì response từ API thiếu id.');
+        }
 
-        syncContentListFromEditorRecord(savedRecord);
-        editorState = createAudiobookEditorState(savedRecord);
+        syncContentListFromEditorRecord(normalizedSavedRecord);
+        if (routeState.pathname === '/content/new' && Array.isArray(normalizedSavedRecord.chapters)) {
+          chapterRepository.seedChapters(savedAudiobookId, normalizedSavedRecord.chapters);
+        }
+        editorState = createAudiobookEditorState(normalizedSavedRecord);
         editorState = {
           ...editorState,
           status: 'saved',
           message: 'Đã lưu draft thành công.',
         };
         editorIsLoaded = true;
-        editorRouteKey = routeState.pathname === '/content/new' ? `/content/${savedRecord.id}` : routeState.pathname;
+        editorRouteKey = routeState.pathname === '/content/new' ? `/content/${savedAudiobookId}/chapters` : routeState.pathname;
 
         if (routeState.pathname === '/content/new') {
-          navigate(`/content/${savedRecord.id}`);
+          navigate(`/content/${savedAudiobookId}/chapters`);
           return;
         }
 
@@ -1069,6 +1107,8 @@ export function createAdminApp({
       const fieldName = target.getAttribute('name');
       const dataField = target.getAttribute('data-editor-field');
       const searchField = target.getAttribute('data-editor-search');
+      const chapterIndex = target.getAttribute('data-editor-chapter-index');
+      const chapterField = target.getAttribute('data-editor-chapter-field');
 
       if (fieldName === 'title' || fieldName === 'description' || fieldName === 'durationSec' || fieldName === 'languageCode' || fieldName === 'coverImageAssetKey') {
         editorState = updateAudiobookEditorField(editorState, fieldName, target.value);
@@ -1135,6 +1175,16 @@ export function createAdminApp({
         };
         renderPreservingFocus();
       }
+
+      if (chapterIndex !== null && chapterField) {
+        editorState = updateAudiobookEditorChapterField(
+          editorState,
+          Number(chapterIndex),
+          chapterField,
+          target.value,
+        );
+        renderPreservingFocus();
+      }
     });
 
     form.addEventListener('change', async (event) => {
@@ -1196,6 +1246,13 @@ export function createAdminApp({
     form.addEventListener('click', async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      const addChapterButton = target.closest('[data-editor-add-chapter]');
+      if (addChapterButton && addChapterButton instanceof HTMLElement) {
+        editorState = addAudiobookEditorChapter(editorState);
+        renderPreservingFocus();
         return;
       }
 
@@ -1275,6 +1332,26 @@ export function createAdminApp({
         };
         render();
       }
+    });
+
+    form.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      const removeButton = target.closest('[data-editor-remove-chapter]');
+      if (!removeButton || !(removeButton instanceof HTMLElement)) {
+        return;
+      }
+
+      const chapterIndex = Number(removeButton.getAttribute('data-editor-remove-chapter'));
+      if (Number.isNaN(chapterIndex)) {
+        return;
+      }
+
+      editorState = removeAudiobookEditorChapter(editorState, chapterIndex);
+      renderPreservingFocus();
     });
   }
 

@@ -2,11 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildAudiobookEditorDraftFromRecord,
+  addAudiobookEditorChapter,
   createAudiobookEditorState,
   createBlankAudiobookEditorDraft,
   createLocalAudiobookId,
   getEditorPublishWarning,
   serializeAudiobookEditorPayload,
+  removeAudiobookEditorChapter,
+  updateAudiobookEditorChapterField,
   toggleAudiobookEditorCategory,
   toggleAudiobookEditorTag,
   updateAudiobookEditorAuthor,
@@ -23,6 +26,7 @@ test('createBlankAudiobookEditorDraft returns a new empty editor draft', () => {
   assert.equal(draft.authorId, '');
   assert.equal(draft.narrators.length, 3);
   assert.equal(draft.languageCode, 'vi');
+  assert.equal(draft.chapters.length, 1);
 });
 
 test('buildAudiobookEditorDraftFromRecord hydrates published metadata and taxonomy state', () => {
@@ -78,7 +82,29 @@ test('serializeAudiobookEditorPayload emits contract fields only', () => {
     durationSec: 0,
     premiumFlag: false,
     languageCode: 'vi',
+    chapters: [
+      {
+        title: '',
+        orderIndex: 1,
+        durationSec: 0,
+        audioAssetKey: '',
+        transcript: null,
+      },
+    ],
   });
+});
+
+test('chapter helpers add, update and remove initial chapters', () => {
+  const createState = createAudiobookEditorState();
+  const addedState = addAudiobookEditorChapter(createState);
+  const updatedState = updateAudiobookEditorChapterField(addedState, 0, 'title', 'Intro');
+  const removedState = removeAudiobookEditorChapter(updatedState, 1);
+
+  assert.equal(createState.draft.chapters.length, 1);
+  assert.equal(addedState.draft.chapters.length, 2);
+  assert.equal(updatedState.draft.chapters[0].title, 'Intro');
+  assert.equal(removedState.draft.chapters.length, 1);
+  assert.equal(removedState.draft.chapters[0].orderIndex, 1);
 });
 
 test('toggle helpers add and remove taxonomy selections', () => {

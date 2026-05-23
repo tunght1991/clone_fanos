@@ -15,7 +15,12 @@ import 'app_config.dart';
 import 'app_scope.dart';
 
 class CloneFanosApp extends StatefulWidget {
-  const CloneFanosApp({super.key});
+  final AppConfig? config;
+
+  const CloneFanosApp({
+    super.key,
+    this.config,
+  });
 
   @override
   State<CloneFanosApp> createState() => _CloneFanosAppState();
@@ -28,7 +33,7 @@ class _CloneFanosAppState extends State<CloneFanosApp> {
   @override
   void initState() {
     super.initState();
-    _config = AppConfig.fromEnvironment();
+    _config = widget.config ?? AppConfig.fromEnvironment();
     _appState = AppState(
       authRepository: createAuthRepository(_config),
       contentRepository: createDiscoveryRepository(_config),
@@ -37,7 +42,7 @@ class _CloneFanosAppState extends State<CloneFanosApp> {
       subscriptionRepository: createSubscriptionRepository(_config),
       analyticsRepository: createAnalyticsRepository(_config),
       onboardingStore: InMemoryOnboardingStore(),
-      sessionStore: InMemorySessionStore(),
+      sessionStore: createSessionStore(),
     );
     _appState.bootstrap();
   }

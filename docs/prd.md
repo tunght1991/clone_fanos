@@ -75,8 +75,8 @@ Sản phẩm cần giải quyết:
 - Nghe audio qua signed asset access URL
 
 ### 4.2 MVP Admin CMS
-- Create audiobook metadata and bind asset keys
-- Create chapter metadata and bind asset keys
+- Create audiobook metadata and initial chapters in one submit
+- Create and manage chapter metadata and bind asset keys
 - Quản lý author
 - Quản lý category
 - Publish / unpublish content
@@ -226,7 +226,7 @@ Tài liệu kiến trúc bao gồm:
 - As a user, I want to resume listening from my last position, so that I do not lose progress.
 - As a user, I want to change playback speed, so that I can listen at my preferred pace.
 - As a user, I want to create bookmarks at specific timestamps, so that I can revisit important parts later.
-- As an admin, I want to create audiobooks and chapters and bind asset keys, so that I can manage the content library.
+- As an admin, I want to create an audiobook and its initial chapters in one submit and bind asset keys, so that I can manage the content library.
 - As an admin, I want to publish or unpublish content, so that I can control what is visible to users.
 - As a user, I want to know whether a book is premium, so that I can decide whether to subscribe.
 

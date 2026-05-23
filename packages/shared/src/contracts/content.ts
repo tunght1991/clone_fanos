@@ -6,6 +6,10 @@ export const CHAPTER_STATUSES = ['draft', 'ready', 'published', 'archived'] as c
 
 export type ChapterStatus = (typeof CHAPTER_STATUSES)[number];
 
+export function isNarratorRoleIndexValid(roleIndex: number): boolean {
+  return Number.isInteger(roleIndex) && roleIndex >= 1 && roleIndex <= 3;
+}
+
 export interface ContentAuthorDto {
   id: string;
   name: string;
@@ -71,6 +75,15 @@ export interface AdminCreateAudiobookRequestDto {
   durationSec?: number;
   premiumFlag?: boolean;
   languageCode?: string;
+  chapters?: AdminCreateAudiobookChapterRequestDto[];
+}
+
+export interface AdminCreateAudiobookChapterRequestDto {
+  title: string;
+  orderIndex: number;
+  durationSec?: number;
+  audioAssetKey: string;
+  transcript?: string | null;
 }
 
 export interface AdminUpdateAudiobookRequestDto {

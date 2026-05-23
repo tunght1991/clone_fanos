@@ -1,5 +1,4 @@
 import '../../../app/app_config.dart';
-import 'package:flutter/foundation.dart';
 import 'discovery_models.dart';
 import '../data/http_discovery_repository.dart';
 import '../data/mock_discovery_repository.dart';
@@ -38,8 +37,8 @@ abstract class DiscoveryRepository {
   Future<AudiobookDetail?> getAudiobookDetail(String audiobookId);
 }
 
-DiscoveryRepository createDiscoveryRepository(AppConfig config, {bool? isWeb}) {
-  if (shouldUseMockRepositories(config, isWeb: isWeb)) {
+DiscoveryRepository createDiscoveryRepository(AppConfig config) {
+  if (shouldUseMockRepositories(config)) {
     return MockDiscoveryRepository();
   }
 

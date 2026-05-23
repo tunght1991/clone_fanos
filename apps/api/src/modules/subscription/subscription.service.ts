@@ -60,10 +60,13 @@ export class SubscriptionService {
   async verifySubscription(userId: string, request?: SubscriptionVerifyRequestDto): Promise<SubscriptionReceiptVerificationDto | null> {
     const checkedAt = new Date();
     const verificationReference = this.resolveVerificationReference(request);
+    const hasVerificationProof = Boolean(request?.receiptToken || request?.transactionId || request?.orderId);
     const verificationIdempotencyKey =
-      request && verificationReference ? this.buildReceiptVerificationIdempotencyKey(userId, request, verificationReference) : null;
+      request && verificationReference && hasVerificationProof
+        ? this.buildReceiptVerificationIdempotencyKey(userId, request, verificationReference)
+        : null;
 
-    if (request && verificationReference && verificationIdempotencyKey) {
+    if (request && verificationReference && hasVerificationProof && verificationIdempotencyKey) {
       await this.dependencies.repositories.subscriptionRepository.recordReceiptVerification({
         userId,
         provider: request.provider ?? this.dependencies.policy.provider,
@@ -72,7 +75,7 @@ export class SubscriptionService {
         receiptToken: request.receiptToken,
         transactionId: request.transactionId,
         orderId: request.orderId,
-        payloadJson: request,
+        payloadJson: request as Record<string, unknown>,
         occurredAt: checkedAt,
       });
 

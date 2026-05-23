@@ -347,36 +347,59 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
-      appBar: AppBar(title: const Text('Subscription')),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        child: _buildActionBar(context),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _manualRefresh,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildStatusCard(context),
-                    const SizedBox(height: 16),
-                    _buildPlanCatalog(context),
-                    const SizedBox(height: 16),
-                    _buildPaymentCard(context),
-                  ],
+    return AnimatedBuilder(
+      animation: widget.appState,
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: Theme.of(context).colorScheme.background,
+          appBar: AppBar(title: const Text('Subscription')),
+          bottomNavigationBar: SafeArea(
+            minimum: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: _buildActionBar(context),
+          ),
+          body: Column(
+            children: [
+              if (widget.appState.subscriptionRefreshError != null)
+                _SubscriptionRefreshBanner(
+                  message: 'Subscription info needs a refresh.',
+                  onDismiss: widget.appState.clearSubscriptionRefreshError,
+                  onRetry: () async {
+                    try {
+                      await widget.appState.refreshSubscription();
+                    } catch (_) {
+                      // The banner remains visible because the state still carries the error.
+                    }
+                  },
+                ),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _manualRefresh,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                    children: [
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 760),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildStatusCard(context),
+                              const SizedBox(height: 16),
+                              _buildPlanCatalog(context),
+                              const SizedBox(height: 16),
+                              _buildPaymentCard(context),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -611,5 +634,51 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   bool _isTerminalUnlocked() {
     return _phase == _SubscriptionUiPhase.unlocked || (_subscription?.entitlement.canAccessPremium ?? false);
+  }
+}
+
+class _SubscriptionRefreshBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onDismiss;
+  final Future<void> Function() onRetry;
+
+  const _SubscriptionRefreshBanner({
+    required this.message,
+    required this.onDismiss,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.55),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: Row(
+            children: [
+              const Icon(Icons.sync_problem_outlined),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              TextButton(
+                onPressed: onDismiss,
+                child: const Text('Dismiss'),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () => onRetry(),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
