@@ -1,5 +1,4 @@
 import '../../../app/app_config.dart';
-import 'package:flutter/foundation.dart';
 
 import '../data/http_analytics_repository.dart';
 import '../data/mock_analytics_repository.dart';
@@ -24,8 +23,8 @@ class NoopAnalyticsRepository implements AnalyticsRepository {
   }) async {}
 }
 
-AnalyticsRepository createAnalyticsRepository(AppConfig config, {bool? isWeb}) {
-  if (shouldUseMockRepositories(config, isWeb: isWeb)) {
+AnalyticsRepository createAnalyticsRepository(AppConfig config) {
+  if (shouldUseMockRepositories(config)) {
     return MockAnalyticsRepository();
   }
 

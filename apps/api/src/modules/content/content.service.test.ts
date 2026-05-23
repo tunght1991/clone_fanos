@@ -217,3 +217,31 @@ test('ContentService returns null when audiobook is not published', async () => 
 
   assert.equal(detail, null);
 });
+
+test('ContentService rejects narrator rows with invalid role index', async () => {
+  const service = new ContentService(
+    createRepositoryBundle({
+      audiobookNarratorRepository: {
+        async findDetailedByAudiobookId() {
+          return [
+            {
+              id: 'narrator-link-1',
+              audiobookId: 'book-1',
+              narratorId: 'narrator-1',
+              narratorName: 'Narrator Name',
+              roleIndex: 0,
+              isPrimary: true,
+              createdAt: new Date('2026-05-10T00:00:00.000Z'),
+              updatedAt: new Date('2026-05-11T00:00:00.000Z'),
+            },
+          ];
+        },
+      } as ContentRepositoryBundle['audiobookNarratorRepository'],
+    }),
+  );
+
+  await assert.rejects(
+    () => service.getPublishedAudiobookDetail('book-1'),
+    /invalid narrator role index/i,
+  );
+});

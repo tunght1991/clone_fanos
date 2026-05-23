@@ -267,7 +267,8 @@ export function parseAssetAccessRequest(body: unknown): GetAssetAccessRequest {
     assetKey: readRequiredText(payload.assetKey, 'assetKey', 1, 512),
     kind: readAssetKind(payload.kind, 'kind'),
     purpose: readAssetPurpose(payload.purpose, 'purpose'),
-    offlineCapable: readOptionalBoolean(payload.offlineCapable, 'offlineCapable', false),
+    // Sprint 10 keeps offline playback out of scope, so the API boundary normalizes this to false.
+    offlineCapable: false,
   };
 }
 

@@ -2,6 +2,7 @@ export declare const CONTENT_STATUSES: readonly ["draft", "published", "unpublis
 export type ContentStatus = (typeof CONTENT_STATUSES)[number];
 export declare const CHAPTER_STATUSES: readonly ["draft", "ready", "published", "archived"];
 export type ChapterStatus = (typeof CHAPTER_STATUSES)[number];
+export declare function isNarratorRoleIndexValid(roleIndex: number): boolean;
 export interface ContentAuthorDto {
     id: string;
     name: string;

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { InMemorySearchAliasManager, NoopSearchIndexRepository } from './search.index.repository.js';
+import { InMemorySearchAliasManager, NoopSearchIndexRepository, PostgresSearchDocumentSource } from './search.index.repository.js';
 
 test('NoopSearchIndexRepository honors write options while counting documents', async () => {
   const repository = new NoopSearchIndexRepository();
@@ -36,4 +36,47 @@ test('InMemorySearchAliasManager increments versioned index names and swaps safe
   const rolledBack = await manager.rollbackLastSwap();
   assert.equal(rolledBack.activeIndexName, 'audiobooks_v1');
   assert.equal(rolledBack.previousIndexName, 'audiobooks_v2');
+});
+
+test('PostgresSearchDocumentSource uses a deterministic tie-breaker for bulk reindex ordering', async () => {
+  let capturedQuery = '';
+
+  const source = new PostgresSearchDocumentSource({
+    async query(text) {
+      capturedQuery = text;
+      return {
+        rows: [
+          {
+            audiobookId: 'book-1',
+            title: 'Atomic Habits',
+            description: null,
+            coverImageAssetKey: null,
+            authorId: 'author-1',
+            authorName: 'James Clear',
+            narratorIds: [],
+            narratorNames: [],
+            categoryIds: [],
+            categoryNames: [],
+            tagIds: [],
+            tagNames: [],
+            premiumFlag: true,
+            status: 'PUBLISHED',
+            publishedAt: new Date('2026-05-11T00:00:00.000Z'),
+            popularityScore: 1,
+            languageCode: 'vi',
+            createdAt: new Date('2026-05-11T00:00:00.000Z'),
+            updatedAt: new Date('2026-05-11T00:00:00.000Z'),
+          },
+        ],
+      } as never;
+    },
+  } as never);
+
+  const documents = await source.listPublishedSearchDocuments();
+
+  assert.equal(documents.length, 1);
+  assert.match(
+    capturedQuery.replace(/\s+/g, ' '),
+    /ORDER BY audiobooks\.published_at DESC NULLS LAST, audiobooks\.created_at DESC, audiobooks\.id ASC/,
+  );
 });

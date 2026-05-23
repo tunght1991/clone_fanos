@@ -6,6 +6,8 @@ Source spec: [admin-create-audiobook-spec.md](./admin-create-audiobook-spec.md)
 
 Implement a single-submit admin create flow that persists a new audiobook and its initial chapters atomically in PostgreSQL, then returns the created audiobook DTO for downstream read/publish flows.
 
+Status: implemented in codebase and verified by targeted API/admin tests.
+
 ## Major Components
 
 1. Shared contract updates for nested audiobook create payloads
@@ -38,27 +40,27 @@ Implement a single-submit admin create flow that persists a new audiobook and it
 
 ## Tasks
 
-- [ ] Task: Extend shared create-audiobook contract for nested chapters
+- [x] Task: Extend shared create-audiobook contract for nested chapters
   - Acceptance: `AdminCreateAudiobookRequestDto` includes chapter input data with strict validation rules and no loose payload fields.
   - Verify: Shared contract/request-schema tests pass.
   - Files: `packages/shared/src/contracts/content.ts`, `apps/api/src/http/request-schema.ts`, `apps/api/src/http/request-schema.test.ts`
 
-- [ ] Task: Persist audiobook and chapters in one backend transaction
+- [x] Task: Persist audiobook and chapters in one backend transaction
   - Acceptance: `POST /admin/audiobooks` writes the audiobook and its chapters atomically and returns the created audiobook DTO.
   - Verify: Backend mutation/service/repository tests pass, including rollback on chapter failure.
   - Files: `apps/api/src/http/admin.http.controller.ts`, `apps/api/src/modules/content/content.mutation.service.ts`, `apps/api/src/modules/content/content.repository.ts`, `apps/api/src/modules/content/content.mutation.service.test.ts`
 
-- [ ] Task: Add admin UI for creating audiobook with chapters
+- [x] Task: Add admin UI for creating audiobook with chapters
   - Acceptance: Admin can enter audiobook metadata and a chapter list in one form, submit once, and see validation or success feedback.
   - Verify: Admin UI tests pass for form validation, submit success, and request-in-flight state.
   - Files: `apps/admin/src/features/content-editor/content-editor-view.js`, `apps/admin/src/ui/views.js`, `apps/admin/src/styles.css`, `apps/admin/test/*`
 
-- [ ] Task: Wire end-to-end create flow to existing admin navigation
+- [x] Task: Wire end-to-end create flow to existing admin navigation
   - Acceptance: The admin CMS exposes a clear path to the new create-audiobook form without breaking current dashboard/editor flows.
   - Verify: Admin smoke checks and targeted UI tests pass.
   - Files: `apps/admin/src/features/content-dashboard/content-dashboard-view.js`, `apps/admin/src/features/content-editor/content-editor-view.js`, `apps/admin/src/ui/views.js`
 
-- [ ] Task: Lock regression coverage for read-back and rollback behavior
+- [x] Task: Lock regression coverage for read-back and rollback behavior
   - Acceptance: The created audiobook is visible through normal read APIs, and failed create requests do not leave orphaned chapters.
   - Verify: Backend integration tests and smoke tests pass.
   - Files: `apps/api/src/http/backend.smoke.test.ts`, `apps/api/src/modules/content/content.service.test.ts`, `apps/api/src/modules/content/content.controller.test.ts`
@@ -69,4 +71,3 @@ Implement a single-submit admin create flow that persists a new audiobook and it
 2. Should chapter count be unrestricted, or should the form enforce a practical cap for MVP?
 3. Should the create flow auto-generate chapter order indexes, or let the admin edit them directly?
 4. Should the create form support copying chapters from an existing audiobook template later?
-

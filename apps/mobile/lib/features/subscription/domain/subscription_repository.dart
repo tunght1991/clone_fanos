@@ -1,5 +1,4 @@
 import '../../../app/app_config.dart';
-import 'package:flutter/foundation.dart';
 import 'subscription_models.dart';
 import '../data/http_subscription_repository.dart';
 import '../data/mock_subscription_repository.dart';
@@ -28,8 +27,8 @@ abstract class SubscriptionRepository {
   });
 }
 
-SubscriptionRepository createSubscriptionRepository(AppConfig config, {bool? isWeb}) {
-  if (shouldUseMockRepositories(config, isWeb: isWeb)) {
+SubscriptionRepository createSubscriptionRepository(AppConfig config) {
+  if (shouldUseMockRepositories(config)) {
     return MockSubscriptionRepository();
   }
 

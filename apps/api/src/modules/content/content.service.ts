@@ -1,3 +1,4 @@
+import { isNarratorRoleIndexValid } from '../../../../../packages/shared/src/contracts/content.js';
 import type { AudiobookDetailDto, AudiobookListItemDto, AudiobookListResponseDto } from './content.dto.js';
 import type { ContentRepositoryBundle } from './content.repository.js';
 
@@ -68,12 +69,16 @@ export class ContentService {
         transcript: chapter.transcript,
         status: chapter.status,
       })),
-      narrators: narrators.map((narrator) => ({
-        id: narrator.narratorId,
-        name: narrator.narratorName,
-        roleIndex: narrator.roleIndex,
-        isPrimary: narrator.isPrimary,
-      })),
+      narrators: narrators.map((narrator) => {
+        this.assertValidNarratorRole(narrator.roleIndex);
+
+        return {
+          id: narrator.narratorId,
+          name: narrator.narratorName,
+          roleIndex: narrator.roleIndex,
+          isPrimary: narrator.isPrimary,
+        };
+      }),
     };
   }
 
@@ -93,5 +98,11 @@ export class ContentService {
       languageCode: item.languageCode,
       publishedAt: item.publishedAt ? item.publishedAt.toISOString() : null,
     };
+  }
+
+  private assertValidNarratorRole(roleIndex: number): void {
+    if (!isNarratorRoleIndexValid(roleIndex)) {
+      throw new Error(`Invalid narrator role index ${roleIndex}`);
+    }
   }
 }

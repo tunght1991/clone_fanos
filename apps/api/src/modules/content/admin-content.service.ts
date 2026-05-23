@@ -1,3 +1,4 @@
+import { isNarratorRoleIndexValid } from '../../../../../packages/shared/src/contracts/content.js';
 import type { DatabaseExecutor } from '../../db/postgres.js';
 import type { AudiobookNarratorRow, ChapterRow, ContentStatus } from './content.types.js';
 
@@ -323,9 +324,18 @@ export class AdminContentService {
       ...mapAudiobookListRow(audiobook),
       chapterCount: chapters.rows.length,
       chapters: chapters.rows,
-      narrators: narrators.rows,
+      narrators: narrators.rows.map((narrator) => {
+        this.assertValidNarratorRole(narrator.roleIndex);
+        return narrator;
+      }),
       categoryIds: categories.rows.map((row) => row.id),
       tagIds: tags.rows.map((row) => row.id),
     };
+  }
+
+  private assertValidNarratorRole(roleIndex: number): void {
+    if (!isNarratorRoleIndexValid(roleIndex)) {
+      throw new Error(`Invalid narrator role index ${roleIndex}`);
+    }
   }
 }

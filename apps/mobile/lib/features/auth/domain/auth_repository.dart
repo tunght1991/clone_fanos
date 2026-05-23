@@ -1,5 +1,4 @@
 import '../../../app/app_config.dart';
-import 'package:flutter/foundation.dart';
 import 'auth_models.dart';
 import '../data/http_auth_repository.dart';
 import '../data/mock_auth_repository.dart';
@@ -29,8 +28,8 @@ abstract class AuthRepository {
   });
 }
 
-AuthRepository createAuthRepository(AppConfig config, {bool? isWeb}) {
-  if (shouldUseMockRepositories(config, isWeb: isWeb)) {
+AuthRepository createAuthRepository(AppConfig config) {
+  if (shouldUseMockRepositories(config)) {
     return MockAuthRepository();
   }
 

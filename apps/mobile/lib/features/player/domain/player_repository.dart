@@ -1,5 +1,4 @@
 import '../../../app/app_config.dart';
-import 'package:flutter/foundation.dart';
 import 'player_models.dart';
 import '../data/http_player_repository.dart';
 import '../data/mock_player_repository.dart';
@@ -27,8 +26,8 @@ abstract class PlayerRepository {
   });
 }
 
-PlayerRepository createPlayerRepository(AppConfig config, {bool? isWeb}) {
-  if (shouldUseMockRepositories(config, isWeb: isWeb)) {
+PlayerRepository createPlayerRepository(AppConfig config) {
+  if (shouldUseMockRepositories(config)) {
     return MockPlayerRepository();
   }
 

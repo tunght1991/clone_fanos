@@ -44,7 +44,8 @@ export class AssetAccessService {
       url: this.buildUrl(provider, request.assetKey, request.kind, request.purpose, expiresAt),
       expiresAt,
       streamable: request.purpose === 'STREAM' || request.purpose === 'PREVIEW',
-      offlineCapable: Boolean(request.offlineCapable),
+      // Sprint 10 keeps offline playback out of scope, so asset access stays stream-only.
+      offlineCapable: false,
       headers: request.kind === 'AUDIO' && request.purpose === 'STREAM'
         ? { Range: 'bytes=0-' }
         : undefined,

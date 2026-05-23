@@ -1,17 +1,17 @@
 import 'dart:convert';
-import 'dart:io';
 
+import '../../../core/network/api_transport.dart';
 import '../domain/player_models.dart';
 import '../domain/player_repository.dart';
 
 class HttpPlayerRepository implements PlayerRepository {
   final Uri baseUri;
-  final HttpClient _client;
+  final ApiTransport _transport;
 
   HttpPlayerRepository({
     required this.baseUri,
-    HttpClient? client,
-  }) : _client = client ?? HttpClient();
+    ApiTransport? transport,
+  }) : _transport = transport ?? createApiTransport();
 
   @override
   Future<PlaybackProgressState?> getProgress({
@@ -81,28 +81,34 @@ class HttpPlayerRepository implements PlayerRepository {
     required String? accessToken,
     required String? userId,
   }) async {
-    final request = await _client.postUrl(baseUri.resolve(path));
-    request.headers.contentType = ContentType.json;
-    if (accessToken != null && accessToken.isNotEmpty) {
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $accessToken');
-    }
-    if (userId != null && userId.isNotEmpty) {
-      request.headers.set('x-user-id', userId);
-    }
-    request.write(jsonEncode(body));
-    final response = await request.close();
-    final payload = await utf8.decoder.bind(response).join();
+    final uri = baseUri.resolve(path);
+    final response = await _transport.postJson(
+      uri,
+      body,
+      headers: <String, String>{
+        if (accessToken != null && accessToken.isNotEmpty)
+          'Authorization': 'Bearer $accessToken',
+        if (userId != null && userId.isNotEmpty) 'x-user-id': userId,
+      },
+    );
 
     if (response.statusCode >= 400) {
-      throw HttpException('Request failed: ${response.statusCode} $payload');
+      throw ApiException(
+        method: 'POST',
+        uri: uri,
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
 
-    if (payload.trim().isEmpty) {
+    if (response.body.trim().isEmpty) {
       return <String, dynamic>{};
     }
 
-    final decoded = jsonDecode(payload);
-    return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{'data': decoded};
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic>
+        ? decoded
+        : <String, dynamic>{'data': decoded};
   }
 
   Future<Map<String, dynamic>?> _getJson(
@@ -110,30 +116,37 @@ class HttpPlayerRepository implements PlayerRepository {
     required String? accessToken,
     required String? userId,
   }) async {
-    final request = await _client.getUrl(baseUri.resolve(path));
-    if (accessToken != null && accessToken.isNotEmpty) {
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $accessToken');
-    }
-    if (userId != null && userId.isNotEmpty) {
-      request.headers.set('x-user-id', userId);
-    }
-    final response = await request.close();
-    final payload = await utf8.decoder.bind(response).join();
+    final uri = baseUri.resolve(path);
+    final response = await _transport.get(
+      uri,
+      headers: <String, String>{
+        if (accessToken != null && accessToken.isNotEmpty)
+          'Authorization': 'Bearer $accessToken',
+        if (userId != null && userId.isNotEmpty) 'x-user-id': userId,
+      },
+    );
 
-    if (response.statusCode == HttpStatus.notFound) {
+    if (response.statusCode == 404) {
       return null;
     }
 
     if (response.statusCode >= 400) {
-      throw HttpException('Request failed: ${response.statusCode} $payload');
+      throw ApiException(
+        method: 'GET',
+        uri: uri,
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
 
-    if (payload.trim().isEmpty) {
+    if (response.body.trim().isEmpty) {
       return null;
     }
 
-    final decoded = jsonDecode(payload);
-    return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{'data': decoded};
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic>
+        ? decoded
+        : <String, dynamic>{'data': decoded};
   }
 
   PlaybackProgressState _parseProgress(Map<String, dynamic> json) {
@@ -143,8 +156,11 @@ class HttpPlayerRepository implements PlayerRepository {
       chapterId: data['chapterId'] as String? ?? '',
       positionMs: data['positionMs'] as int? ?? 0,
       completed: data['completed'] as bool? ?? false,
-      lastPlayedAt: data['lastPlayedAt'] == null ? null : DateTime.parse(data['lastPlayedAt'] as String),
-      updatedAt: DateTime.parse(data['updatedAt'] as String? ?? DateTime.now().toIso8601String()),
+      lastPlayedAt: data['lastPlayedAt'] == null
+          ? null
+          : DateTime.parse(data['lastPlayedAt'] as String),
+      updatedAt: DateTime.parse(
+          data['updatedAt'] as String? ?? DateTime.now().toIso8601String()),
     );
   }
 
@@ -161,11 +177,11 @@ class HttpPlayerRepository implements PlayerRepository {
     return AudioAssetAccess(
       provider: data['provider'] as String? ?? 'CDN',
       url: data['url'] as String? ?? '',
-      expiresAt: DateTime.parse(data['expiresAt'] as String? ?? DateTime.now().toIso8601String()),
+      expiresAt: DateTime.parse(
+          data['expiresAt'] as String? ?? DateTime.now().toIso8601String()),
       streamable: data['streamable'] as bool? ?? true,
       offlineCapable: data['offlineCapable'] as bool? ?? false,
       headers: headers,
     );
   }
 }
-

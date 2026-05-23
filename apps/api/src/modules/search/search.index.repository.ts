@@ -187,7 +187,7 @@ export class PostgresSearchDocumentSource implements SearchDocumentSource {
        FROM audiobooks
        INNER JOIN authors ON authors.id = audiobooks.author_id
        WHERE audiobooks.status = 'published'
-       ORDER BY audiobooks.published_at DESC NULLS LAST, audiobooks.created_at DESC`
+       ORDER BY audiobooks.published_at DESC NULLS LAST, audiobooks.created_at DESC, audiobooks.id ASC`
     );
 
     return result.rows.map((row) => buildSearchDocument(row));

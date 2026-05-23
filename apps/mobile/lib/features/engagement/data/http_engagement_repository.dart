@@ -1,17 +1,17 @@
 import 'dart:convert';
-import 'dart:io';
 
+import '../../../core/network/api_transport.dart';
 import '../domain/engagement_models.dart';
 import '../domain/engagement_repository.dart';
 
 class HttpEngagementRepository implements EngagementRepository {
   final Uri baseUri;
-  final HttpClient _client;
+  final ApiTransport _transport;
 
   HttpEngagementRepository({
     required this.baseUri,
-    HttpClient? client,
-  }) : _client = client ?? HttpClient();
+    ApiTransport? transport,
+  }) : _transport = transport ?? createApiTransport();
 
   @override
   Future<BookmarkEntry> createBookmark(
@@ -39,7 +39,8 @@ class HttpEngagementRepository implements EngagementRepository {
     String? userId,
     String? accessToken,
   }) async {
-    await _deleteJson('/bookmarks/$bookmarkId', userId: userId, accessToken: accessToken);
+    await _deleteJson('/bookmarks/$bookmarkId',
+        userId: userId, accessToken: accessToken);
     return true;
   }
 
@@ -49,11 +50,16 @@ class HttpEngagementRepository implements EngagementRepository {
     String? userId,
     String? accessToken,
   }) async {
-    final json = await _getJson('/bookmarks', queryParameters: {
-      if (audiobookId != null) 'audiobookId': audiobookId,
-    }, userId: userId, accessToken: accessToken);
+    final json = await _getJson('/bookmarks',
+        queryParameters: {
+          if (audiobookId != null) 'audiobookId': audiobookId,
+        },
+        userId: userId,
+        accessToken: accessToken);
     final data = json['data'] as List<dynamic>? ?? const <dynamic>[];
-    return data.map((item) => _parseBookmark(item as Map<String, dynamic>)).toList();
+    return data
+        .map((item) => _parseBookmark(item as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -62,9 +68,11 @@ class HttpEngagementRepository implements EngagementRepository {
     String? userId,
     String? accessToken,
   }) async {
-    final existing = await isFavorite(audiobookId, userId: userId, accessToken: accessToken);
+    final existing =
+        await isFavorite(audiobookId, userId: userId, accessToken: accessToken);
     if (existing) {
-      await _deleteJson('/favorites/$audiobookId', userId: userId, accessToken: accessToken);
+      await _deleteJson('/favorites/$audiobookId',
+          userId: userId, accessToken: accessToken);
       final favorite = FavoriteEntry(
         id: audiobookId,
         audiobookId: audiobookId,
@@ -85,7 +93,8 @@ class HttpEngagementRepository implements EngagementRepository {
       accessToken: accessToken,
     );
     final result = json['favorite'] as Map<String, dynamic>? ?? json;
-    return FavoriteToggleResult(favorited: true, favorite: _parseFavorite(result));
+    return FavoriteToggleResult(
+        favorited: true, favorite: _parseFavorite(result));
   }
 
   @override
@@ -94,11 +103,16 @@ class HttpEngagementRepository implements EngagementRepository {
     String? userId,
     String? accessToken,
   }) async {
-    final json = await _getJson('/favorites', queryParameters: {
-      if (audiobookId != null) 'audiobookId': audiobookId,
-    }, userId: userId, accessToken: accessToken);
+    final json = await _getJson('/favorites',
+        queryParameters: {
+          if (audiobookId != null) 'audiobookId': audiobookId,
+        },
+        userId: userId,
+        accessToken: accessToken);
     final data = json['data'] as List<dynamic>? ?? const <dynamic>[];
-    return data.map((item) => _parseFavorite(item as Map<String, dynamic>)).toList();
+    return data
+        .map((item) => _parseFavorite(item as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -107,7 +121,8 @@ class HttpEngagementRepository implements EngagementRepository {
     String? userId,
     String? accessToken,
   }) async {
-    final favorites = await listFavorites(audiobookId: audiobookId, userId: userId, accessToken: accessToken);
+    final favorites = await listFavorites(
+        audiobookId: audiobookId, userId: userId, accessToken: accessToken);
     return favorites.isNotEmpty;
   }
 
@@ -117,19 +132,24 @@ class HttpEngagementRepository implements EngagementRepository {
     String? userId,
     String? accessToken,
   }) async {
-    final request = await _client.postUrl(baseUri.resolve(path));
-    _applyAuthHeaders(request, userId: userId, accessToken: accessToken);
-    request.headers.contentType = ContentType.json;
-    request.write(jsonEncode(body));
-    final response = await request.close();
-    final payload = await utf8.decoder.bind(response).join();
+    final uri = baseUri.resolve(path);
+    final response = await _transport.postJson(
+      uri,
+      body,
+      headers: _buildHeaders(userId: userId, accessToken: accessToken),
+    );
     if (response.statusCode >= 400) {
-      throw HttpException('Request failed: ${response.statusCode} $payload');
+      throw ApiException(
+        method: 'POST',
+        uri: uri,
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
-    if (payload.trim().isEmpty) {
+    if (response.body.trim().isEmpty) {
       return <String, dynamic>{};
     }
-    return jsonDecode(payload) as Map<String, dynamic>;
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<void> _deleteJson(
@@ -137,12 +157,18 @@ class HttpEngagementRepository implements EngagementRepository {
     String? userId,
     String? accessToken,
   }) async {
-    final request = await _client.deleteUrl(baseUri.resolve(path));
-    _applyAuthHeaders(request, userId: userId, accessToken: accessToken);
-    final response = await request.close();
-    final payload = await utf8.decoder.bind(response).join();
+    final uri = baseUri.resolve(path);
+    final response = await _transport.delete(
+      uri,
+      headers: _buildHeaders(userId: userId, accessToken: accessToken),
+    );
     if (response.statusCode >= 400) {
-      throw HttpException('Request failed: ${response.statusCode} $payload');
+      throw ApiException(
+        method: 'DELETE',
+        uri: uri,
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
   }
 
@@ -152,35 +178,37 @@ class HttpEngagementRepository implements EngagementRepository {
     String? userId,
     String? accessToken,
   }) async {
-    final request = await _client.getUrl(
-      baseUri.replace(
-        path: path,
-        queryParameters: queryParameters,
-      ),
+    final uri = baseUri.replace(
+      path: path,
+      queryParameters: queryParameters,
     );
-    _applyAuthHeaders(request, userId: userId, accessToken: accessToken);
-    final response = await request.close();
-    final payload = await utf8.decoder.bind(response).join();
+    final response = await _transport.get(
+      uri,
+      headers: _buildHeaders(userId: userId, accessToken: accessToken),
+    );
     if (response.statusCode >= 400) {
-      throw HttpException('Request failed: ${response.statusCode} $payload');
+      throw ApiException(
+        method: 'GET',
+        uri: uri,
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
-    if (payload.trim().isEmpty) {
+    if (response.body.trim().isEmpty) {
       return <String, dynamic>{};
     }
-    return jsonDecode(payload) as Map<String, dynamic>;
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  void _applyAuthHeaders(
-    HttpClientRequest request, {
+  Map<String, String> _buildHeaders({
     String? userId,
     String? accessToken,
   }) {
-    if (accessToken != null && accessToken.isNotEmpty) {
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $accessToken');
-    }
-    if (userId != null && userId.isNotEmpty) {
-      request.headers.set('x-user-id', userId);
-    }
+    return <String, String>{
+      if (accessToken != null && accessToken.isNotEmpty)
+        'Authorization': 'Bearer $accessToken',
+      if (userId != null && userId.isNotEmpty) 'x-user-id': userId,
+    };
   }
 
   BookmarkEntry _parseBookmark(Map<String, dynamic> json) {
@@ -188,13 +216,15 @@ class HttpEngagementRepository implements EngagementRepository {
       id: json['id'] as String? ?? '',
       audiobookId: json['audiobookId'] as String? ?? '',
       audiobookTitle: json['audiobookTitle'] as String? ?? '',
-      audiobookCoverImageAssetKey: json['audiobookCoverImageAssetKey'] as String?,
+      audiobookCoverImageAssetKey:
+          json['audiobookCoverImageAssetKey'] as String?,
       authorName: json['authorName'] as String? ?? '',
       chapterId: json['chapterId'] as String? ?? '',
       chapterTitle: json['chapterTitle'] as String? ?? '',
       positionMs: json['positionMs'] as int? ?? 0,
       note: json['note'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+          json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
     );
   }
 
@@ -203,11 +233,13 @@ class HttpEngagementRepository implements EngagementRepository {
       id: json['id'] as String? ?? '',
       audiobookId: json['audiobookId'] as String? ?? '',
       audiobookTitle: json['audiobookTitle'] as String? ?? '',
-      audiobookCoverImageAssetKey: json['audiobookCoverImageAssetKey'] as String?,
+      audiobookCoverImageAssetKey:
+          json['audiobookCoverImageAssetKey'] as String?,
       authorName: json['authorName'] as String? ?? '',
       durationSec: json['durationSec'] as int? ?? 0,
       premiumFlag: json['premiumFlag'] as bool? ?? false,
-      createdAt: DateTime.parse(json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+          json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
     );
   }
 }

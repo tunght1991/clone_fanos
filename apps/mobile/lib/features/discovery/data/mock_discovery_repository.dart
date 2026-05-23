@@ -8,14 +8,21 @@ class MockDiscoveryRepository implements DiscoveryRepository {
   Future<BrowseFeed> getBrowseFeed({String? categoryId}) async {
     final items = _filterRecords(categoryId: categoryId);
     final categories = _buildCategories(_records);
-    final featured = items.where((record) => record.summary.isFeatured).map((record) => record.summary).toList();
-    final newReleases = items.where((record) => record.summary.isNew).map((record) => record.summary).toList();
+    final featured = items
+        .where((record) => record.summary.isFeatured)
+        .map((record) => record.summary)
+        .toList();
+    final newReleases = items
+        .where((record) => record.summary.isNew)
+        .map((record) => record.summary)
+        .toList();
 
     return BrowseFeed(
       categories: categories,
       featured: featured,
       newReleases: newReleases,
-      continueListening: _records.firstWhere((record) => record.progress != null).progress,
+      continueListening:
+          _records.firstWhere((record) => record.progress != null).progress,
     );
   }
 
@@ -24,9 +31,9 @@ class MockDiscoveryRepository implements DiscoveryRepository {
     final normalizedQuery = request.query.trim().toLowerCase();
     final filtered = _sortRecords(
       _filterRecords(
-      categoryId: request.categoryId,
-      premiumFlag: request.premiumFlag,
-      query: normalizedQuery,
+        categoryId: request.categoryId,
+        premiumFlag: request.premiumFlag,
+        query: normalizedQuery,
       ),
       sortBy: request.sortBy,
       sortOrder: request.sortOrder,
@@ -35,8 +42,11 @@ class MockDiscoveryRepository implements DiscoveryRepository {
     final page = request.page < 1 ? 1 : request.page;
     final pageSize = request.pageSize < 1 ? 20 : request.pageSize;
     final startIndex = (page - 1) * pageSize;
-    final pageItems = startIndex >= filtered.length ? <AudiobookSummary>[] : filtered.skip(startIndex).take(pageSize).toList();
-    final totalPages = filtered.isEmpty ? 0 : ((filtered.length - 1) ~/ pageSize) + 1;
+    final pageItems = startIndex >= filtered.length
+        ? <AudiobookSummary>[]
+        : filtered.skip(startIndex).take(pageSize).toList();
+    final totalPages =
+        filtered.isEmpty ? 0 : ((filtered.length - 1) ~/ pageSize) + 1;
 
     return SearchPage(
       items: pageItems,
@@ -52,9 +62,9 @@ class MockDiscoveryRepository implements DiscoveryRepository {
   @override
   Future<AudiobookDetail?> getAudiobookDetail(String audiobookId) async {
     final record = _records.cast<_MockAudiobookRecord?>().firstWhere(
-      (item) => item?.summary.id == audiobookId,
-      orElse: () => null,
-    );
+          (item) => item?.summary.id == audiobookId,
+          orElse: () => null,
+        );
 
     return record?.detail;
   }
@@ -65,7 +75,8 @@ class MockDiscoveryRepository implements DiscoveryRepository {
     String? query,
   }) {
     return _records.where((record) {
-      if (categoryId != null && !record.summary.categoryIds.contains(categoryId)) {
+      if (categoryId != null &&
+          !record.summary.categoryIds.contains(categoryId)) {
         return false;
       }
 
@@ -107,7 +118,8 @@ class MockDiscoveryRepository implements DiscoveryRepository {
 
     switch (sortBy) {
       case discoverySearchSortByTitle:
-        sorted.sort((left, right) => compareStrings(left.summary.title, right.summary.title));
+        sorted.sort((left, right) =>
+            compareStrings(left.summary.title, right.summary.title));
         break;
       case discoverySearchSortByDuration:
         sorted.sort(
@@ -128,7 +140,9 @@ class MockDiscoveryRepository implements DiscoveryRepository {
     final counts = <String, _CategoryBucket>{};
 
     for (final record in records) {
-      for (var index = 0; index < record.summary.categoryIds.length; index += 1) {
+      for (var index = 0;
+          index < record.summary.categoryIds.length;
+          index += 1) {
         final categoryId = record.summary.categoryIds[index];
         final categoryName = record.summary.categoryNames[index];
         final bucket = counts.putIfAbsent(
@@ -159,7 +173,8 @@ class MockDiscoveryRepository implements DiscoveryRepository {
         summary: AudiobookSummary(
           id: 'book-clean-architecture',
           title: 'Clean Architecture cho Product Teams',
-          description: 'Một lộ trình nghe ngắn gọn về clean architecture, domain boundaries và cách giữ codebase dễ mở rộng.',
+          description:
+              'Một lộ trình nghe ngắn gọn về clean architecture, domain boundaries và cách giữ codebase dễ mở rộng.',
           coverImageAssetKey: 'cover-clean-architecture',
           authorId: 'author-bao',
           authorName: 'Bảo Trần',
@@ -178,7 +193,8 @@ class MockDiscoveryRepository implements DiscoveryRepository {
         detail: AudiobookDetail(
           id: 'book-clean-architecture',
           title: 'Clean Architecture cho Product Teams',
-          description: 'Một lộ trình nghe ngắn gọn về clean architecture, domain boundaries và cách giữ codebase dễ mở rộng.',
+          description:
+              'Một lộ trình nghe ngắn gọn về clean architecture, domain boundaries và cách giữ codebase dễ mở rộng.',
           coverImageAssetKey: 'cover-clean-architecture',
           authorId: 'author-bao',
           authorName: 'Bảo Trần',
@@ -200,7 +216,11 @@ class MockDiscoveryRepository implements DiscoveryRepository {
               orderIndex: 1,
               durationSec: 960,
               audioAssetKey: 'audio/book-clean-architecture/chapter-1.mp3',
-              transcript: null,
+              transcript: '''
+00:00 In this chapter we talk about service boundaries.
+00:24 Keep the domain core small.
+00:48 Use repositories at the edge.
+''',
               status: 'PUBLISHED',
             ),
             AudiobookChapter(
@@ -209,7 +229,11 @@ class MockDiscoveryRepository implements DiscoveryRepository {
               orderIndex: 2,
               durationSec: 1180,
               audioAssetKey: 'audio/book-clean-architecture/chapter-2.mp3',
-              transcript: null,
+              transcript: '''
+00:00 In this chapter we talk about service boundaries.
+00:24 Keep the domain core small.
+00:48 Use repositories at the edge.
+''',
               status: 'PUBLISHED',
             ),
             AudiobookChapter(
@@ -240,7 +264,8 @@ class MockDiscoveryRepository implements DiscoveryRepository {
         summary: AudiobookSummary(
           id: 'book-system-design',
           title: 'System Design cho Knowledge Workers',
-          description: 'Giải thích hệ thống theo cách thực dụng: scale, cache, search và vận hành sản phẩm nội dung.',
+          description:
+              'Giải thích hệ thống theo cách thực dụng: scale, cache, search và vận hành sản phẩm nội dung.',
           coverImageAssetKey: 'cover-system-design',
           authorId: 'author-linh',
           authorName: 'Linh Phạm',
@@ -259,7 +284,8 @@ class MockDiscoveryRepository implements DiscoveryRepository {
         detail: AudiobookDetail(
           id: 'book-system-design',
           title: 'System Design cho Knowledge Workers',
-          description: 'Giải thích hệ thống theo cách thực dụng: scale, cache, search và vận hành sản phẩm nội dung.',
+          description:
+              'Giải thích hệ thống theo cách thực dụng: scale, cache, search và vận hành sản phẩm nội dung.',
           coverImageAssetKey: 'cover-system-design',
           authorId: 'author-linh',
           authorName: 'Linh Phạm',
@@ -310,7 +336,8 @@ class MockDiscoveryRepository implements DiscoveryRepository {
         summary: AudiobookSummary(
           id: 'book-japanese-listening',
           title: 'Japanese Daily Listening',
-          description: 'Nghe ngắn mỗi ngày với tốc độ phù hợp, tập trung vào học từ vựng và ngữ điệu.',
+          description:
+              'Nghe ngắn mỗi ngày với tốc độ phù hợp, tập trung vào học từ vựng và ngữ điệu.',
           coverImageAssetKey: 'cover-japanese-listening',
           authorId: 'author-hao',
           authorName: 'Hảo Nguyễn',
@@ -329,7 +356,8 @@ class MockDiscoveryRepository implements DiscoveryRepository {
         detail: AudiobookDetail(
           id: 'book-japanese-listening',
           title: 'Japanese Daily Listening',
-          description: 'Nghe ngắn mỗi ngày với tốc độ phù hợp, tập trung vào học từ vựng và ngữ điệu.',
+          description:
+              'Nghe ngắn mỗi ngày với tốc độ phù hợp, tập trung vào học từ vựng và ngữ điệu.',
           coverImageAssetKey: 'cover-japanese-listening',
           authorId: 'author-hao',
           authorName: 'Hảo Nguyễn',
@@ -371,7 +399,8 @@ class MockDiscoveryRepository implements DiscoveryRepository {
         summary: AudiobookSummary(
           id: 'book-habit-system',
           title: 'Learning Habit System',
-          description: 'Thiết kế thói quen học tập bền vững bằng checkpoint, bookmark và continue listening.',
+          description:
+              'Thiết kế thói quen học tập bền vững bằng checkpoint, bookmark và continue listening.',
           coverImageAssetKey: 'cover-habit-system',
           authorId: 'author-anh',
           authorName: 'Anh Lê',
@@ -390,7 +419,8 @@ class MockDiscoveryRepository implements DiscoveryRepository {
         detail: AudiobookDetail(
           id: 'book-habit-system',
           title: 'Learning Habit System',
-          description: 'Thiết kế thói quen học tập bền vững bằng checkpoint, bookmark và continue listening.',
+          description:
+              'Thiết kế thói quen học tập bền vững bằng checkpoint, bookmark và continue listening.',
           coverImageAssetKey: 'cover-habit-system',
           authorId: 'author-anh',
           authorName: 'Anh Lê',

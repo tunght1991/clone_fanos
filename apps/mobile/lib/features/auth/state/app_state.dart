@@ -59,16 +59,30 @@ class AppState extends ChangeNotifier {
     _setBusy(true);
     try {
       final onboardingCompleted = await onboardingStore.isCompleted();
-      _session = await sessionStore.read();
-      _phase = _session != null
-          ? AppPhase.authenticated
-          : (onboardingCompleted ? AppPhase.unauthenticated : AppPhase.onboarding);
-      if (_session != null) {
-        await _syncSubscriptionAfterAuth();
-      } else {
+      final storedSession = await sessionStore.read();
+      if (storedSession == null) {
+        _session = null;
         _subscription = null;
         _errorMessage = null;
         _subscriptionRefreshError = null;
+        _phase = onboardingCompleted
+            ? AppPhase.unauthenticated
+            : AppPhase.onboarding;
+      } else {
+        final restoredSession = await _restoreSession(storedSession);
+        if (restoredSession == null) {
+          _session = null;
+          _subscription = null;
+          _errorMessage = null;
+          _subscriptionRefreshError = null;
+          _phase = onboardingCompleted
+              ? AppPhase.unauthenticated
+              : AppPhase.onboarding;
+        } else {
+          _session = restoredSession;
+          _phase = AppPhase.authenticated;
+          await _syncSubscriptionAfterAuth();
+        }
       }
       unawaited(
         trackAnalyticsEvent(
@@ -90,7 +104,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> completeOnboarding() async {
     await onboardingStore.markCompleted();
-    _phase = _session != null ? AppPhase.authenticated : AppPhase.unauthenticated;
+    _phase =
+        _session != null ? AppPhase.authenticated : AppPhase.unauthenticated;
     _errorMessage = null;
     notifyListeners();
   }
@@ -103,7 +118,8 @@ class AppState extends ChangeNotifier {
     _subscriptionRefreshError = null;
     _setBusy(true);
     try {
-      final session = await authRepository.login(email: email, password: password);
+      final session =
+          await authRepository.login(email: email, password: password);
       await sessionStore.write(session);
       _session = session;
       _phase = AppPhase.authenticated;
@@ -191,7 +207,29 @@ class AppState extends ChangeNotifier {
   Future<void> _syncSubscriptionAfterAuth() async {
     try {
       await refreshSubscription();
+    } catch (_) {}
+  }
+
+  Future<AuthSession?> _restoreSession(AuthSession storedSession) async {
+    final now = DateTime.now().toUtc();
+    if (storedSession.expiresAt.isAfter(now)) {
+      return storedSession;
+    }
+
+    if (storedSession.refreshExpiresAt.isBefore(now)) {
+      await sessionStore.clear();
+      return null;
+    }
+
+    try {
+      final refreshedSession = await authRepository.refresh(
+        refreshToken: storedSession.refreshToken,
+      );
+      await sessionStore.write(refreshedSession);
+      return refreshedSession;
     } catch (_) {
+      await sessionStore.clear();
+      return null;
     }
   }
 

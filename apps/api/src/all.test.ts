@@ -7,6 +7,7 @@ import './http/hardening.test.ts';
 import './http/request-schema.test.ts';
 import './http/auth-context.test.ts';
 import './modules/assets/asset-access.policy.test.ts';
+import './modules/assets/asset-access.service.test.ts';
 import './modules/auth/auth.policy.test.ts';
 import './modules/auth/auth-token.test.ts';
 import './modules/auth/password-hash.test.ts';

@@ -281,7 +281,7 @@ test('parseAssetAccessRequest normalizes asset access payloads', () => {
     assetKey: 'chapters/book-1/ch-1.mp3',
     kind: 'AUDIO',
     purpose: 'STREAM',
-    offlineCapable: true,
+    offlineCapable: false,
   });
 });
 

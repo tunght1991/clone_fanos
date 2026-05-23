@@ -169,3 +169,33 @@ test('AdminContentService returns audiobook detail with chapters and narrators',
   assert.deepEqual(result?.categoryIds, ['category-business']);
   assert.deepEqual(result?.tagIds, ['tag-habit']);
 });
+
+test('AdminContentService rejects narrator rows with invalid role index', async () => {
+  const database = createDatabaseStub();
+  database.query = async function query(text: string) {
+    if (text.includes('FROM audiobook_narrators')) {
+      return {
+        rows: [
+          {
+            id: 'narrator-link-1',
+            audiobookId: 'ab-new',
+            narratorId: 'narrator-1',
+            narratorName: 'Lan Anh',
+            roleIndex: 4,
+            isPrimary: true,
+            createdAt: new Date('2026-05-01T00:00:00.000Z'),
+            updatedAt: new Date('2026-05-01T00:00:00.000Z'),
+          },
+        ],
+      } as never;
+    }
+
+    return createDatabaseStub().query(text);
+  };
+  const service = new AdminContentService(database as never);
+
+  await assert.rejects(
+    () => service.getAudiobookById('ab-new'),
+    /invalid narrator role index/i,
+  );
+});
