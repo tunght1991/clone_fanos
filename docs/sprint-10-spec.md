@@ -151,32 +151,32 @@ Test expectations:
 
 ## Tasks
 
-- [ ] Task: Lock shared contracts and validation rules
+- [x] Task: Lock shared contracts and validation rules
   - Acceptance: shared DTOs/enums/rules cover entitlement status, asset access, narrator role index, and any search event shape that needs alignment; offline playback remains documented as a non-goal
   - Verify: targeted contract/type tests or package-level typecheck for `packages/shared`
   - Files: `packages/shared/src/contracts/*`, `docs/api-design.md`, `docs/data-model.md`, `docs/security.md`
 
-- [ ] Task: Harden subscription entitlement flow in backend
+- [x] Task: Harden subscription entitlement flow in backend
   - Acceptance: verify/entitlement paths cannot bypass server-side checks; existing happy path still works; regression tests cover failed and pending cases
   - Verify: targeted API/service tests in `apps/api`
   - Files: `apps/api/src/modules/subscription/*`, related backend tests
 
-- [ ] Task: Harden search reindex and mapping behavior
+- [x] Task: Harden search reindex and mapping behavior
   - Acceptance: publish/update content triggers deterministic reindex behavior; mapping changes are minimal and covered by tests; rollback or failure behavior is explicit
   - Verify: targeted search/reindex tests in `apps/api`
   - Files: `apps/api/src/modules/search/*`, `apps/api/src/modules/content/*`, search-related tests, and mapping files if required
 
-- [ ] Task: Enforce asset access and narrator constraints in backend
+- [x] Task: Enforce asset access and narrator constraints in backend
   - Acceptance: asset access responses remain backend-resolved only; narrator role index stays within `1..3` at boundary validation and persistence
   - Verify: targeted service/API tests in `apps/api`
   - Files: `apps/api/src/modules/assets/*`, `apps/api/src/modules/content/*`, narrator-related validation/tests
 
-- [ ] Task: Align mobile gating and asset consumption with backend rules
+- [x] Task: Align mobile gating and asset consumption with backend rules
   - Acceptance: mobile uses backend entitlement and asset-access decisions without introducing new offline playback scope; gating behavior matches contract
   - Verify: targeted mobile tests for gating/asset resolution
   - Files: `apps/mobile/lib/*`, especially subscription, playback, and asset access screens/services
 
-- [ ] Task: Synchronize docs and sprint checklist with implemented rules
+- [x] Task: Synchronize docs and sprint checklist with implemented rules
   - Acceptance: docs reflect the final contract and the sprint checklist records the updated state of Sprint 10
   - Verify: manual review against implemented behavior and checklist entries
   - Files: `docs/api-design.md`, `docs/security.md`, `docs/data-model.md`, `docs/implementation-sprint-checklist.md`, `docs/sprint-10-spec.md`

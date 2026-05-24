@@ -15,6 +15,18 @@ void main() {
     expect(session.accessToken.isNotEmpty, true);
   });
 
+  test('MockAuthRepository accepts the seeded admin account', () async {
+    final repository = MockAuthRepository();
+
+    final session = await repository.login(
+      email: 'admin@fonos.test',
+      password: 'Secret123!',
+    );
+
+    expect(session.user.displayName, 'Admin One');
+    expect(session.user.role.name, 'admin');
+  });
+
   test('MockAuthRepository returns null for unknown access token', () async {
     final repository = MockAuthRepository();
 

@@ -84,7 +84,7 @@ function mapAudiobookListRow(row: AdminAudiobookListItem & {
 
 function createFilterSql() {
   return `
-    WHERE ($1 = 'ALL' OR a.status = $1)
+    WHERE ($1 = 'ALL' OR a.status = $1::content_status)
       AND (
         $2 = '' OR
         a.title ILIKE $2 OR

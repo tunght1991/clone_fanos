@@ -6,6 +6,7 @@ import '../domain/auth_repository.dart';
 class MockAuthRepository implements AuthRepository {
   final Map<String, String> _passwordByEmail = <String, String>{
     'demo@clonefanos.local': 'password123',
+    'admin@fonos.test': 'Secret123!',
   };
   final Map<String, AuthUser> _userByEmail = <String, AuthUser>{
     'demo@clonefanos.local': const AuthUser(
@@ -14,6 +15,14 @@ class MockAuthRepository implements AuthRepository {
       displayName: 'Demo User',
       avatarAssetKey: null,
       role: AuthRole.user,
+      isActive: true,
+    ),
+    'admin@fonos.test': const AuthUser(
+      id: 'user-admin',
+      email: 'admin@fonos.test',
+      displayName: 'Admin One',
+      avatarAssetKey: null,
+      role: AuthRole.admin,
       isActive: true,
     ),
   };

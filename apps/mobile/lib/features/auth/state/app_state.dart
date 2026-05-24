@@ -6,11 +6,11 @@ import '../../../core/storage/onboarding_store.dart';
 import '../../../core/storage/session_store.dart';
 import '../../analytics/domain/analytics_models.dart';
 import '../../analytics/domain/analytics_repository.dart';
-import '../../engagement/domain/engagement_repository.dart';
 import '../../discovery/domain/discovery_repository.dart';
+import '../../engagement/domain/engagement_repository.dart';
 import '../../player/domain/player_repository.dart';
-import '../../subscription/domain/subscription_repository.dart';
 import '../../subscription/domain/subscription_models.dart';
+import '../../subscription/domain/subscription_repository.dart';
 import '../domain/auth_models.dart';
 import '../domain/auth_repository.dart';
 
@@ -56,50 +56,40 @@ class AppState extends ChangeNotifier {
   SubscriptionState? get currentSubscription => _subscription;
 
   Future<void> bootstrap() async {
-    _setBusy(true);
-    try {
-      final onboardingCompleted = await onboardingStore.isCompleted();
-      final storedSession = await sessionStore.read();
-      if (storedSession == null) {
-        _session = null;
-        _subscription = null;
-        _errorMessage = null;
-        _subscriptionRefreshError = null;
-        _phase = onboardingCompleted
-            ? AppPhase.unauthenticated
-            : AppPhase.onboarding;
-      } else {
-        final restoredSession = await _restoreSession(storedSession);
-        if (restoredSession == null) {
-          _session = null;
-          _subscription = null;
-          _errorMessage = null;
-          _subscriptionRefreshError = null;
-          _phase = onboardingCompleted
-              ? AppPhase.unauthenticated
-              : AppPhase.onboarding;
+    await _runBusy(() async {
+      try {
+        final onboardingCompleted = await onboardingStore.isCompleted();
+        final storedSession = await sessionStore.read();
+        if (storedSession == null) {
+          _setUnauthenticatedState(
+            onboardingCompleted: onboardingCompleted,
+          );
         } else {
-          _session = restoredSession;
-          _phase = AppPhase.authenticated;
-          await _syncSubscriptionAfterAuth();
+          final restoredSession = await _restoreSession(storedSession);
+          if (restoredSession == null) {
+            _setUnauthenticatedState(
+              onboardingCompleted: onboardingCompleted,
+            );
+          } else {
+            _activateSession(restoredSession);
+            await _syncSubscriptionAfterAuth();
+          }
         }
+        unawaited(
+          trackAnalyticsEvent(
+            'app_opened',
+            payload: {
+              'phase': _phase.name,
+              'hasSession': _session != null,
+              'onboardingCompleted': onboardingCompleted,
+            },
+          ),
+        );
+      } catch (error) {
+        _errorMessage = error.toString();
+        _phase = AppPhase.onboarding;
       }
-      unawaited(
-        trackAnalyticsEvent(
-          'app_opened',
-          payload: {
-            'phase': _phase.name,
-            'hasSession': _session != null,
-            'onboardingCompleted': onboardingCompleted,
-          },
-        ),
-      );
-    } catch (error) {
-      _errorMessage = error.toString();
-      _phase = AppPhase.onboarding;
-    } finally {
-      _setBusy(false);
-    }
+    });
   }
 
   Future<void> completeOnboarding() async {
@@ -114,21 +104,18 @@ class AppState extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
-    _errorMessage = null;
-    _subscriptionRefreshError = null;
-    _setBusy(true);
-    try {
-      final session =
-          await authRepository.login(email: email, password: password);
-      await sessionStore.write(session);
-      _session = session;
-      _phase = AppPhase.authenticated;
-      await _syncSubscriptionAfterAuth();
-    } catch (error) {
-      _errorMessage = error.toString();
-    } finally {
-      _setBusy(false);
-    }
+    await _runBusy(() async {
+      _resetAuthStateErrors();
+      try {
+        final session =
+            await authRepository.login(email: email, password: password);
+        await sessionStore.write(session);
+        _activateSession(session);
+        await _syncSubscriptionAfterAuth();
+      } catch (error) {
+        _errorMessage = error.toString();
+      }
+    });
   }
 
   Future<void> register({
@@ -136,29 +123,25 @@ class AppState extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
-    _errorMessage = null;
-    _subscriptionRefreshError = null;
-    _setBusy(true);
-    try {
-      final session = await authRepository.register(
-        displayName: displayName,
-        email: email,
-        password: password,
-      );
-      await sessionStore.write(session);
-      _session = session;
-      _phase = AppPhase.authenticated;
-      await _syncSubscriptionAfterAuth();
-    } catch (error) {
-      _errorMessage = error.toString();
-    } finally {
-      _setBusy(false);
-    }
+    await _runBusy(() async {
+      _resetAuthStateErrors();
+      try {
+        final session = await authRepository.register(
+          displayName: displayName,
+          email: email,
+          password: password,
+        );
+        await sessionStore.write(session);
+        _activateSession(session);
+        await _syncSubscriptionAfterAuth();
+      } catch (error) {
+        _errorMessage = error.toString();
+      }
+    });
   }
 
   Future<void> logout() async {
-    _setBusy(true);
-    try {
+    await _runBusy(() async {
       final refreshToken = _session?.refreshToken;
       if (refreshToken != null) {
         try {
@@ -169,14 +152,8 @@ class AppState extends ChangeNotifier {
       }
 
       await sessionStore.clear();
-      _session = null;
-      _subscription = null;
-      _subscriptionRefreshError = null;
-      _phase = AppPhase.unauthenticated;
-      _errorMessage = null;
-    } finally {
-      _setBusy(false);
-    }
+      _setSignedOutState();
+    });
   }
 
   Future<SubscriptionState?> refreshSubscription() async {
@@ -251,6 +228,45 @@ class AppState extends ChangeNotifier {
     } catch (_) {
       // Best effort: analytics must not break the user flow.
     }
+  }
+
+  Future<void> _runBusy(Future<void> Function() action) async {
+    _setBusy(true);
+    try {
+      await action();
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  void _resetAuthStateErrors() {
+    _errorMessage = null;
+    _subscriptionRefreshError = null;
+  }
+
+  void _setUnauthenticatedState({
+    required bool onboardingCompleted,
+  }) {
+    _session = null;
+    _subscription = null;
+    _errorMessage = null;
+    _subscriptionRefreshError = null;
+    _phase = onboardingCompleted
+        ? AppPhase.unauthenticated
+        : AppPhase.onboarding;
+  }
+
+  void _setSignedOutState() {
+    _session = null;
+    _subscription = null;
+    _subscriptionRefreshError = null;
+    _phase = AppPhase.unauthenticated;
+    _errorMessage = null;
+  }
+
+  void _activateSession(AuthSession session) {
+    _session = session;
+    _phase = AppPhase.authenticated;
   }
 
   void clearError() {

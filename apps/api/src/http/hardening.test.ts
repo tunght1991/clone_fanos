@@ -197,10 +197,8 @@ test('parseCorsOrigins defaults to local development origins', () => {
   const origins = parseCorsOrigins(undefined, 'development');
 
   assert.deepEqual(origins, [
-    'http://localhost:3001',
-    'http://localhost:4173',
-    'http://127.0.0.1:3001',
-    'http://127.0.0.1:4173',
+    'http://localhost',
+    'http://127.0.0.1',
   ]);
 });
 
@@ -208,10 +206,14 @@ test('resolveCorsOrigin only allows configured origins or wildcard', () => {
   const allowed = resolveCorsOrigin('http://localhost:4173', ['http://localhost:4173']);
   const denied = resolveCorsOrigin('http://evil.example', ['http://localhost:4173']);
   const wildcard = resolveCorsOrigin('http://evil.example', ['*']);
+  const localhostDev = resolveCorsOrigin('http://localhost:54123', ['http://localhost']);
+  const loopbackDev = resolveCorsOrigin('http://127.0.0.1:54231', ['http://127.0.0.1']);
 
   assert.equal(allowed.allowed, true);
   assert.equal(denied.allowed, false);
   assert.equal(wildcard.allowed, true);
+  assert.equal(localhostDev.allowed, true);
+  assert.equal(loopbackDev.allowed, true);
 });
 
 test('formatHttpErrorResponse hides internal errors and preserves http exceptions', () => {

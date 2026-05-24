@@ -202,7 +202,7 @@ function renderChapterRows(state) {
             <label class="editor-label">
               <span>Chapter title</span>
               <input
-                name="chapterTitle"
+                name="chapterTitle-${String(index)}"
                 data-editor-chapter-index="${String(index)}"
                 data-editor-chapter-field="title"
                 value="${escapeHtml(chapter.title)}"
@@ -214,7 +214,7 @@ function renderChapterRows(state) {
               <label class="editor-label">
                 <span>Order</span>
                 <input
-                  name="chapterOrderIndex"
+                  name="chapterOrderIndex-${String(index)}"
                   type="number"
                   min="1"
                   data-editor-chapter-index="${String(index)}"
@@ -226,7 +226,7 @@ function renderChapterRows(state) {
               <label class="editor-label">
                 <span>Duration (sec)</span>
                 <input
-                  name="chapterDurationSec"
+                  name="chapterDurationSec-${String(index)}"
                   type="number"
                   min="0"
                   data-editor-chapter-index="${String(index)}"
@@ -239,7 +239,7 @@ function renderChapterRows(state) {
             <label class="editor-label">
               <span>Audio asset key</span>
               <input
-                name="chapterAudioAssetKey"
+                name="chapterAudioAssetKey-${String(index)}"
                 data-editor-chapter-index="${String(index)}"
                 data-editor-chapter-field="audioAssetKey"
                 value="${escapeHtml(chapter.audioAssetKey)}"
@@ -250,7 +250,7 @@ function renderChapterRows(state) {
             <label class="editor-label">
               <span>Transcript</span>
               <textarea
-                name="chapterTranscript"
+                name="chapterTranscript-${String(index)}"
                 rows="3"
                 data-editor-chapter-index="${String(index)}"
                 data-editor-chapter-field="transcript"

@@ -17,8 +17,8 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final _loginFormKey = GlobalKey<FormState>();
   final _registerFormKey = GlobalKey<FormState>();
-  final _loginEmailController = TextEditingController(text: 'demo@clonefanos.local');
-  final _loginPasswordController = TextEditingController(text: 'password123');
+  final _loginEmailController = TextEditingController(text: 'admin@fonos.test');
+  final _loginPasswordController = TextEditingController(text: 'Secret123!');
   final _registerNameController = TextEditingController();
   final _registerEmailController = TextEditingController();
   final _registerPasswordController = TextEditingController();
@@ -60,7 +60,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ListView(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                       children: [
-                        _AuthHeroCard(
+                        const _AuthHeroCard(
                           title: 'Welcome back',
                           subtitle:
                               'Continue your learning habit with a polished audiobook experience built around focus and premium access.',
@@ -128,35 +128,14 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
-    final email = _loginEmailController.text;
-    unawaited(
-      widget.appState.trackAnalyticsEvent(
-        'auth_login_submitted',
-        payload: {'method': 'email'},
-      ),
-    );
-    await widget.appState.login(
-      email: email,
-      password: _loginPasswordController.text,
-    );
-
-    if (widget.appState.phase == AppPhase.authenticated) {
-      unawaited(
-        widget.appState.trackAnalyticsEvent(
-          'auth_login_success',
-          payload: {'method': 'email'},
-        ),
-      );
-      return;
-    }
-
-    unawaited(
-      widget.appState.trackAnalyticsEvent(
-        'auth_login_failed',
-        payload: {
-          'method': 'email',
-          'error': widget.appState.errorMessage,
-        },
+    await _submitAuth(
+      submittedEventName: 'auth_login_submitted',
+      successEventName: 'auth_login_success',
+      failureEventName: 'auth_login_failed',
+      payload: {'method': 'email'},
+      action: () => widget.appState.login(
+        email: _loginEmailController.text,
+        password: _loginPasswordController.text,
       ),
     );
   }
@@ -166,23 +145,40 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
-    unawaited(
-      widget.appState.trackAnalyticsEvent(
-        'auth_register_submitted',
-        payload: {'method': 'email'},
+    await _submitAuth(
+      submittedEventName: 'auth_register_submitted',
+      successEventName: 'auth_register_success',
+      failureEventName: 'auth_register_failed',
+      payload: {'method': 'email'},
+      action: () => widget.appState.register(
+        displayName: _registerNameController.text,
+        email: _registerEmailController.text,
+        password: _registerPasswordController.text,
       ),
     );
-    await widget.appState.register(
-      displayName: _registerNameController.text,
-      email: _registerEmailController.text,
-      password: _registerPasswordController.text,
+  }
+
+  Future<void> _submitAuth({
+    required String submittedEventName,
+    required String successEventName,
+    required String failureEventName,
+    required Map<String, Object?> payload,
+    required Future<void> Function() action,
+  }) async {
+    unawaited(
+      widget.appState.trackAnalyticsEvent(
+        submittedEventName,
+        payload: payload,
+      ),
     );
+
+    await action();
 
     if (widget.appState.phase == AppPhase.authenticated) {
       unawaited(
         widget.appState.trackAnalyticsEvent(
-          'auth_register_success',
-          payload: {'method': 'email'},
+          successEventName,
+          payload: payload,
         ),
       );
       return;
@@ -190,9 +186,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
     unawaited(
       widget.appState.trackAnalyticsEvent(
-        'auth_register_failed',
+        failureEventName,
         payload: {
-          'method': 'email',
+          ...payload,
           'error': widget.appState.errorMessage,
         },
       ),
@@ -221,8 +217,8 @@ class _AuthHeroCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
             colors: [
-              CloneFanosTokens.primary.withOpacity(0.08),
-              CloneFanosTokens.secondary.withOpacity(0.10),
+              CloneFanosTokens.primary.withValues(alpha: 0.08),
+              CloneFanosTokens.secondary.withValues(alpha: 0.10),
               theme.colorScheme.surface,
             ],
             begin: Alignment.topLeft,
@@ -308,37 +304,27 @@ class _LoginForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (errorMessage != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: _ErrorBanner(message: errorMessage!, onDismissed: onClearError),
-            ),
-          TextFormField(
-            controller: emailController,
-            decoration: const InputDecoration(labelText: 'Email'),
-            validator: (value) => value == null || !value.contains('@') ? 'Enter a valid email' : null,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: passwordController,
-            decoration: const InputDecoration(labelText: 'Password'),
-            obscureText: true,
-            validator: (value) => value == null || value.length < 8 ? 'Password must be at least 8 chars' : null,
-          ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: isBusy ? null : () async {
-              await onSubmit();
-            },
-            child: const Text('Login'),
-          ),
-        ],
-      ),
+    return _AuthFormSection(
+      formKey: formKey,
+      isBusy: isBusy,
+      errorMessage: errorMessage,
+      onClearError: onClearError,
+      onSubmit: onSubmit,
+      submitLabel: 'Login',
+      children: [
+        TextFormField(
+          controller: emailController,
+          decoration: const InputDecoration(labelText: 'Email'),
+          validator: _validateEmail,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: passwordController,
+          decoration: const InputDecoration(labelText: 'Password'),
+          obscureText: true,
+          validator: _validatePassword,
+        ),
+      ],
     );
   }
 }
@@ -366,6 +352,58 @@ class _RegisterForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _AuthFormSection(
+      formKey: formKey,
+      isBusy: isBusy,
+      errorMessage: errorMessage,
+      onClearError: onClearError,
+      onSubmit: onSubmit,
+      submitLabel: 'Create account',
+      children: [
+        TextFormField(
+          controller: nameController,
+          decoration: const InputDecoration(labelText: 'Display name'),
+          validator: _validateDisplayName,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: emailController,
+          decoration: const InputDecoration(labelText: 'Email'),
+          validator: _validateEmail,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: passwordController,
+          decoration: const InputDecoration(labelText: 'Password'),
+          obscureText: true,
+          validator: _validatePassword,
+        ),
+      ],
+    );
+  }
+}
+
+class _AuthFormSection extends StatelessWidget {
+  final GlobalKey<FormState> formKey;
+  final bool isBusy;
+  final String? errorMessage;
+  final VoidCallback onClearError;
+  final Future<void> Function() onSubmit;
+  final String submitLabel;
+  final List<Widget> children;
+
+  const _AuthFormSection({
+    required this.formKey,
+    required this.isBusy,
+    required this.errorMessage,
+    required this.onClearError,
+    required this.onSubmit,
+    required this.submitLabel,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Form(
       key: formKey,
       child: Column(
@@ -374,37 +412,37 @@ class _RegisterForm extends StatelessWidget {
           if (errorMessage != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: _ErrorBanner(message: errorMessage!, onDismissed: onClearError),
+              child: _ErrorBanner(
+                message: errorMessage!,
+                onDismissed: onClearError,
+              ),
             ),
-          TextFormField(
-            controller: nameController,
-            decoration: const InputDecoration(labelText: 'Display name'),
-            validator: (value) => value == null || value.trim().isEmpty ? 'Display name is required' : null,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: emailController,
-            decoration: const InputDecoration(labelText: 'Email'),
-            validator: (value) => value == null || !value.contains('@') ? 'Enter a valid email' : null,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: passwordController,
-            decoration: const InputDecoration(labelText: 'Password'),
-            obscureText: true,
-            validator: (value) => value == null || value.length < 8 ? 'Password must be at least 8 chars' : null,
-          ),
+          ...children,
           const SizedBox(height: 20),
           FilledButton(
-            onPressed: isBusy ? null : () async {
-              await onSubmit();
-            },
-            child: const Text('Create account'),
+            onPressed: isBusy
+                ? null
+                : () async {
+                    await onSubmit();
+                  },
+            child: Text(submitLabel),
           ),
         ],
       ),
     );
   }
+}
+
+String? _validateEmail(String? value) {
+  return value == null || !value.contains('@') ? 'Enter a valid email' : null;
+}
+
+String? _validatePassword(String? value) {
+  return value == null || value.length < 8 ? 'Password must be at least 8 chars' : null;
+}
+
+String? _validateDisplayName(String? value) {
+  return value == null || value.trim().isEmpty ? 'Display name is required' : null;
 }
 
 class _ErrorBanner extends StatelessWidget {

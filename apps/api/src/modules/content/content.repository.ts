@@ -160,23 +160,23 @@ export class PostgresAudiobookRepository implements AudiobookRepository {
   async listPublished(page: PageOptions): Promise<AudiobookListItem[]> {
     const result = await this.database.query<AudiobookListItem>(
       `SELECT
-        id,
-        title,
-        description,
-        cover_image_asset_key AS "coverImageAssetKey",
-        author_id AS "authorId",
+        audiobooks.id,
+        audiobooks.title,
+        audiobooks.description,
+        audiobooks.cover_image_asset_key AS "coverImageAssetKey",
+        audiobooks.author_id AS "authorId",
         authors.name AS "authorName",
-        duration_sec AS "durationSec",
-        status,
-        premium_flag AS "premiumFlag",
-        language_code AS "languageCode",
-        published_at AS "publishedAt",
-        created_at AS "createdAt",
-        updated_at AS "updatedAt"
+        audiobooks.duration_sec AS "durationSec",
+        audiobooks.status,
+        audiobooks.premium_flag AS "premiumFlag",
+        audiobooks.language_code AS "languageCode",
+        audiobooks.published_at AS "publishedAt",
+        audiobooks.created_at AS "createdAt",
+        audiobooks.updated_at AS "updatedAt"
        FROM audiobooks
        INNER JOIN authors ON authors.id = audiobooks.author_id
-       WHERE status = 'published'
-       ORDER BY published_at DESC NULLS LAST, created_at DESC
+       WHERE audiobooks.status = 'published'
+       ORDER BY audiobooks.published_at DESC NULLS LAST, audiobooks.created_at DESC
        LIMIT $1 OFFSET $2`,
       [page.limit, page.offset],
     );

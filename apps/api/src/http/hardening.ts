@@ -212,6 +212,10 @@ export function resolveCorsOrigin(origin: string | undefined, allowedOrigins: st
     return { allowed: true, origin };
   }
 
+  if (isLocalDevelopmentOrigin(origin) && allowsLocalDevelopmentOrigins(allowedOrigins)) {
+    return { allowed: true, origin };
+  }
+
   return { allowed: false, origin };
 }
 
@@ -225,10 +229,8 @@ export function parseCorsOrigins(value: string | undefined, nodeEnv: string): st
 
   if (nodeEnv === 'development') {
     return [
-      'http://localhost:3001',
-      'http://localhost:4173',
-      'http://127.0.0.1:3001',
-      'http://127.0.0.1:4173',
+      'http://localhost',
+      'http://127.0.0.1',
     ];
   }
 
@@ -426,4 +428,20 @@ function normalizeErrorMessage(message: unknown, fallback: string): string | str
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function allowsLocalDevelopmentOrigins(allowedOrigins: string[]): boolean {
+  return allowedOrigins.includes('http://localhost') || allowedOrigins.includes('http://127.0.0.1');
+}
+
+function isLocalDevelopmentOrigin(origin: string): boolean {
+  try {
+    const parsedOrigin = new URL(origin);
+    return (
+      parsedOrigin.protocol === 'http:'
+      && (parsedOrigin.hostname === 'localhost' || parsedOrigin.hostname === '127.0.0.1')
+    );
+  } catch {
+    return false;
+  }
 }

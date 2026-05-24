@@ -154,6 +154,22 @@ test('AdminContentService lists draft audiobooks for management', async () => {
   assert.deepEqual(result.data[0].tagNames, ['habit']);
 });
 
+test('AdminContentService casts status filter to content_status', async () => {
+  const database = createDatabaseStub();
+  const service = new AdminContentService(database as never);
+
+  await service.listAudiobooks({
+    page: 1,
+    pageSize: 20,
+    query: '',
+    status: 'PUBLISHED',
+  });
+
+  assert.ok(
+    database.calls.some((call) => call.text.includes('a.status = $1::content_status')),
+  );
+});
+
 test('AdminContentService returns audiobook detail with chapters and narrators', async () => {
   const database = createDatabaseStub();
   const service = new AdminContentService(database as never);

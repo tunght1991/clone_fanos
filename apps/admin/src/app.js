@@ -1,4 +1,5 @@
 import { createAdminApi } from './api/admin-api.js';
+import { getFocusableSelector } from './ui/focus-preservation.js';
 import { bootstrapAdminSession } from './auth/session-bootstrap.js';
 import { createSessionStore } from './auth/session-store.js';
 import { resolveRouteAccess } from './auth/access-control.js';
@@ -105,7 +106,11 @@ export function createAdminApp({
 } = {}) {
   const rootElement = getRootElement(root);
   const store = createSessionStore(storage);
-  const authApi = createAdminApi({ baseUrl, fetchImpl });
+  const authApi = createAdminApi({
+    baseUrl,
+    fetchImpl,
+    getAccessToken: () => sessionState.session?.accessToken ?? '',
+  });
   const contentRepository = createContentDashboardRepository({ adminApi: authApi });
   const editorRepository = createAudiobookEditorRepository({ adminApi: authApi });
   const chapterRepository = createChapterRepository({ adminApi: authApi });
@@ -584,53 +589,6 @@ export function createAdminApp({
       },
       createdAt: new Date().toISOString(),
     };
-  }
-
-  function escapeCssAttributeValue(value) {
-    const text = String(value ?? '');
-    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-      return CSS.escape(text);
-    }
-
-    return text.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-  }
-
-  function getFocusableSelector(element) {
-    if (!(element instanceof HTMLElement)) {
-      return null;
-    }
-
-    if (element.hasAttribute('data-editor-search')) {
-      return `[data-editor-search="${escapeCssAttributeValue(element.getAttribute('data-editor-search'))}"]`;
-    }
-
-    if (element.hasAttribute('data-editor-field')) {
-      return `[data-editor-field="${escapeCssAttributeValue(element.getAttribute('data-editor-field'))}"]`;
-    }
-
-    if (element.hasAttribute('data-editor-narrator-slot')) {
-      return `[data-editor-narrator-slot="${escapeCssAttributeValue(element.getAttribute('data-editor-narrator-slot'))}"]`;
-    }
-
-    if (element.hasAttribute('data-editor-cover-input')) {
-      return '[data-editor-cover-input]';
-    }
-
-    if (element.hasAttribute('data-chapter-audio-input')) {
-      return '[data-chapter-audio-input]';
-    }
-
-    const name = element.getAttribute('name');
-    if (name) {
-      return `[name="${escapeCssAttributeValue(name)}"]`;
-    }
-
-    const id = element.getAttribute('id');
-    if (id) {
-      return `#${escapeCssAttributeValue(id)}`;
-    }
-
-    return null;
   }
 
   function captureFocusedElement() {
