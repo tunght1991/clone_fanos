@@ -38,7 +38,10 @@ export class SubscriptionController {
     return this.subscriptionService.checkout({ userId, request });
   }
 
-  async handleWebhook(event: SubscriptionWebhookEventDto): Promise<SubscriptionWebhookResult> {
-    return this.subscriptionService.handleWebhook(event);
+  async handleWebhook(
+    event: SubscriptionWebhookEventDto,
+    signature?: string,
+  ): Promise<SubscriptionWebhookResult> {
+    return this.subscriptionService.handleWebhook(event, signature);
   }
 }

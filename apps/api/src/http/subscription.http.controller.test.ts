@@ -4,6 +4,21 @@ import test from 'node:test';
 import { SubscriptionHttpController } from './subscription.http.controller.js';
 import type { SubscriptionController } from '../modules/subscription/index.js';
 
+function createAuthControllerStub() {
+  return {
+    async resolvePrincipalFromToken(token: string) {
+      return token === 'token-1'
+        ? {
+            userId: 'user-1',
+            email: 'user@example.com',
+            displayName: 'User One',
+            role: 'user',
+          }
+        : null;
+    },
+  };
+}
+
 function createSubscriptionControllerStub(): SubscriptionController {
   return {
     async getMySubscription() {
@@ -73,25 +88,25 @@ function createSubscriptionControllerStub(): SubscriptionController {
     async checkout() {
       throw new Error('checkout should not be called in this test');
     },
-    async handleWebhook() {
+    async handleWebhook(event: unknown, signature?: string) {
       throw new Error('webhook should not be called in this test');
     },
   } as SubscriptionController;
 }
 
 test('SubscriptionHttpController exposes the paywall plan catalog without auth', async () => {
-  const controller = new SubscriptionHttpController(createSubscriptionControllerStub(), {} as never);
+  const controller = new SubscriptionHttpController(createSubscriptionControllerStub(), createAuthControllerStub() as never);
 
-  const result = await controller.getPlans();
+  const result = await controller.listPlans();
 
   assert.equal(result.data.length, 1);
   assert.equal(result.data[0].id, 'plan-1');
 });
 
 test('SubscriptionHttpController verifies subscription using request body payload', async () => {
-  const controller = new SubscriptionHttpController(createSubscriptionControllerStub(), {} as never);
+  const controller = new SubscriptionHttpController(createSubscriptionControllerStub(), createAuthControllerStub() as never);
 
-  const result = await controller.verifySubscription(undefined, 'user-1', {
+  const result = await controller.verifySubscription('Bearer token-1', {
     checkoutSessionId: 'checkout-1',
     receiptToken: 'receipt-1',
   });

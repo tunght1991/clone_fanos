@@ -83,6 +83,34 @@ test('content editor repository uses create audiobook response chapter metadata'
   assert.equal(saved.chapters[1].title, 'Middle');
 });
 
+test('content editor repository derives chapter count from local create payload when API is unavailable', async () => {
+  const repository = createAudiobookEditorRepository({ adminApi: {} });
+
+  const state = updateAudiobookEditorField(createAudiobookEditorState(), 'title', 'Local Book');
+  state.draft.authorId = 'author-1';
+  state.draft.chapters = [
+    {
+      title: 'Local Intro',
+      orderIndex: 1,
+      durationSec: 60,
+      audioAssetKey: 'chapters/local-intro.mp3',
+      transcript: '',
+    },
+    {
+      title: 'Local Middle',
+      orderIndex: 2,
+      durationSec: 90,
+      audioAssetKey: 'chapters/local-middle.mp3',
+      transcript: '',
+    },
+  ];
+
+  const saved = await repository.saveAudiobook({ mode: 'create', id: '', state });
+
+  assert.equal(saved.chapterCount, 2);
+  assert.equal(saved.chapters.length, 2);
+});
+
 test('content editor repository unwraps nested create audiobook responses with an id', async () => {
   const repository = createAudiobookEditorRepository({
     adminApi: {

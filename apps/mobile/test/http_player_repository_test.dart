@@ -31,8 +31,7 @@ void main() {
             "url": "https://cdn.example/audio.mp3",
             "expiresAt": "2026-05-12T03:00:00.000Z",
             "streamable": true,
-            "offlineCapable": false,
-            "headers": { "X-Token": "abc123" }
+            "offlineCapable": false
           }
         }
         ''',
@@ -57,7 +56,6 @@ void main() {
     expect(progress?.chapterId, 'chapter-2');
     expect(progress?.positionMs, 860000);
     expect(access.url, 'https://cdn.example/audio.mp3');
-    expect(access.headers['X-Token'], 'abc123');
     expect(transport.lastGetHeaders?['Authorization'], 'Bearer access-1');
     expect(transport.lastPostHeaders?['x-user-id'], 'user-1');
   });

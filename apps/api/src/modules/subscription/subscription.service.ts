@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 import { resolveSubscriptionEntitlement, resolveSubscriptionFlowState } from '../../../../../packages/shared/src/contracts/subscription.js';
 import type { SubscriptionPolicy } from './subscription.types.js';
@@ -18,6 +18,8 @@ import type { SubscriptionDetailRow, SubscriptionRepositoryBundle } from './subs
 export interface SubscriptionServiceDependencies {
   policy: SubscriptionPolicy;
   repositories: SubscriptionRepositoryBundle;
+  webhookSecret?: string;
+  allowedReturnUrlOrigins?: string[];
 }
 
 export interface SubscriptionCheckoutContext {
@@ -163,7 +165,8 @@ export class SubscriptionService {
     };
   }
 
-  async handleWebhook(event: SubscriptionWebhookEventDto): Promise<SubscriptionWebhookResult> {
+  async handleWebhook(event: SubscriptionWebhookEventDto, signature?: string): Promise<SubscriptionWebhookResult> {
+    this.assertWebhookSignature(event, signature);
     const idempotencyKey = this.buildWebhookIdempotencyKey(event);
     const accepted = await this.dependencies.repositories.subscriptionRepository.recordWebhookEvent({
       provider: event.provider,
@@ -243,10 +246,61 @@ export class SubscriptionService {
     const url = new URL('https://billing.example.com/checkout');
     url.searchParams.set('checkoutSessionId', checkoutSessionId);
     if (returnUrl) {
-      url.searchParams.set('returnUrl', returnUrl);
+      const normalizedReturnUrl = this.normalizeReturnUrl(returnUrl);
+      if (normalizedReturnUrl) {
+        url.searchParams.set('returnUrl', normalizedReturnUrl);
+      }
     }
 
     return url.toString();
+  }
+
+  private normalizeReturnUrl(returnUrl: string): string | undefined {
+    const normalized = returnUrl.trim();
+    if (!normalized) {
+      return undefined;
+    }
+
+    if (normalized.startsWith('/')) {
+      return normalized;
+    }
+
+    try {
+      const parsed = new URL(normalized);
+      const allowedOrigins = this.dependencies.allowedReturnUrlOrigins ?? [];
+      if (allowedOrigins.includes(parsed.origin)) {
+        return parsed.toString();
+      }
+    } catch {
+      // fall through to reject
+    }
+
+    throw new Error(`Return URL ${returnUrl} is not allowed`);
+  }
+
+  private assertWebhookSignature(event: SubscriptionWebhookEventDto, signature?: string): void {
+    const secret = this.dependencies.webhookSecret?.trim();
+    if (!secret) {
+      throw new Error('Subscription webhook secret is not configured');
+    }
+
+    const providedSignature = signature?.trim();
+    if (!providedSignature) {
+      throw new Error('Missing subscription webhook signature');
+    }
+
+    const expectedSignature = createHmac('sha256', secret)
+      .update(JSON.stringify(event))
+      .digest('hex');
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+    const providedBuffer = Buffer.from(providedSignature, 'hex');
+
+    if (
+      expectedBuffer.length !== providedBuffer.length
+      || !timingSafeEqual(expectedBuffer, providedBuffer)
+    ) {
+      throw new Error('Invalid subscription webhook signature');
+    }
   }
 
   private buildWebhookIdempotencyKey(event: SubscriptionWebhookEventDto): string {

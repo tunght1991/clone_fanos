@@ -21,6 +21,8 @@ export interface SearchHttpQuery {
   sortOrder?: string;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export function parseOptionalPositiveInteger(value: string | undefined): number | undefined {
   if (!value) {
     return undefined;
@@ -121,22 +123,22 @@ export function parseSearchRequestQuery(query: unknown): {
 
   const categoryId = readOptionalText(payload.categoryId);
   if (categoryId !== undefined) {
-    result.categoryId = categoryId;
+    result.categoryId = readUuid(categoryId, 'categoryId');
   }
 
   const tagId = readOptionalText(payload.tagId);
   if (tagId !== undefined) {
-    result.tagId = tagId;
+    result.tagId = readUuid(tagId, 'tagId');
   }
 
   const authorId = readOptionalText(payload.authorId);
   if (authorId !== undefined) {
-    result.authorId = authorId;
+    result.authorId = readUuid(authorId, 'authorId');
   }
 
   const narratorId = readOptionalText(payload.narratorId);
   if (narratorId !== undefined) {
-    result.narratorId = narratorId;
+    result.narratorId = readUuid(narratorId, 'narratorId');
   }
 
   const premiumFlag = parseOptionalBoolean(readOptionalText(payload.premiumFlag));
@@ -192,4 +194,12 @@ function readOptionalText(value: unknown): string | undefined {
 
   const normalized = value.trim();
   return normalized || undefined;
+}
+
+function readUuid(value: string, fieldName: string): string {
+  if (!UUID_PATTERN.test(value)) {
+    throw new SearchQueryParseError(`Invalid UUID value for ${fieldName}: ${value}`);
+  }
+
+  return value;
 }

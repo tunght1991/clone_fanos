@@ -22,7 +22,6 @@ class AudioAssetAccess {
   final DateTime expiresAt;
   final bool streamable;
   final bool offlineCapable;
-  final Map<String, String> headers;
 
   const AudioAssetAccess({
     required this.provider,
@@ -30,7 +29,5 @@ class AudioAssetAccess {
     required this.expiresAt,
     required this.streamable,
     required this.offlineCapable,
-    required this.headers,
   });
 }
-

@@ -190,7 +190,7 @@ class AppState extends ChangeNotifier {
   Future<AuthSession?> _restoreSession(AuthSession storedSession) async {
     final now = DateTime.now().toUtc();
     if (storedSession.expiresAt.isAfter(now)) {
-      return storedSession;
+      return _validateRestoredSession(storedSession);
     }
 
     if (storedSession.refreshExpiresAt.isBefore(now)) {
@@ -202,8 +202,29 @@ class AppState extends ChangeNotifier {
       final refreshedSession = await authRepository.refresh(
         refreshToken: storedSession.refreshToken,
       );
-      await sessionStore.write(refreshedSession);
-      return refreshedSession;
+      final validatedSession = await _validateRestoredSession(refreshedSession);
+      if (validatedSession == null) {
+        await sessionStore.clear();
+        return null;
+      }
+
+      await sessionStore.write(validatedSession);
+      return validatedSession;
+    } catch (_) {
+      await sessionStore.clear();
+      return null;
+    }
+  }
+
+  Future<AuthSession?> _validateRestoredSession(AuthSession session) async {
+    try {
+      final user = await authRepository.me(accessToken: session.accessToken);
+      if (user == null || user.id != session.user.id) {
+        await sessionStore.clear();
+        return null;
+      }
+
+      return session;
     } catch (_) {
       await sessionStore.clear();
       return null;

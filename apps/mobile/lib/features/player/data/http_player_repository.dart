@@ -63,12 +63,12 @@ class HttpPlayerRepository implements PlayerRepository {
   }) async {
     final json = await _postJson(
       '/assets/access',
-      {
-        'assetKey': audioAssetKey,
-        'kind': 'AUDIO',
-        'purpose': 'STREAM',
-        'offlineCapable': true,
-      },
+        {
+          'assetKey': audioAssetKey,
+          'kind': 'AUDIO',
+          'purpose': 'STREAM',
+          'offlineCapable': false,
+        },
       accessToken: accessToken,
       userId: userId,
     );
@@ -166,14 +166,6 @@ class HttpPlayerRepository implements PlayerRepository {
 
   AudioAssetAccess _parseAssetAccess(Map<String, dynamic> json) {
     final data = (json['data'] as Map<String, dynamic>?) ?? json;
-    final headers = <String, String>{};
-    final rawHeaders = data['headers'] as Map<String, dynamic>?;
-    if (rawHeaders != null) {
-      rawHeaders.forEach((key, value) {
-        headers[key] = value?.toString() ?? '';
-      });
-    }
-
     return AudioAssetAccess(
       provider: data['provider'] as String? ?? 'CDN',
       url: data['url'] as String? ?? '',
@@ -181,7 +173,6 @@ class HttpPlayerRepository implements PlayerRepository {
           data['expiresAt'] as String? ?? DateTime.now().toIso8601String()),
       streamable: data['streamable'] as bool? ?? true,
       offlineCapable: data['offlineCapable'] as bool? ?? false,
-      headers: headers,
     );
   }
 }

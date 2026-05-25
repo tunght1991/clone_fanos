@@ -164,6 +164,17 @@ function createService(overrides: Partial<EngagementRepositoryBundle> = {}, cont
             updatedAt: new Date('2026-05-11T00:00:00.000Z'),
           };
         },
+        async findPublishedAudioAssetAccessContext(audioAssetKey: string) {
+          return audioAssetKey === 'audio/chapter-1.mp3'
+            ? {
+                audiobookId: 'book-1',
+                audiobookStatus: 'published',
+                chapterId: 'chapter-1',
+                chapterStatus: 'published',
+                premiumFlag: true,
+              }
+            : null;
+        },
         async updateChapter() {
           throw new Error('not expected');
         },
@@ -286,4 +297,3 @@ test('EngagementService creates, updates and deletes notes', async () => {
   const deleted = await service.deleteNote('user-1', 'note-1');
   assert.equal(deleted.deleted, true);
 });
-

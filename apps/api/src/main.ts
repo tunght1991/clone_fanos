@@ -110,6 +110,8 @@ export function bootstrapApiRuntime() {
   const subscriptionService = new SubscriptionService({
     policy: subscriptionPolicy,
     repositories: subscriptionRepositories,
+    webhookSecret: subscriptionRuntimeConfig.webhookSecret,
+    allowedReturnUrlOrigins: subscriptionRuntimeConfig.allowedReturnUrlOrigins,
   });
   const subscriptionController = new SubscriptionController(subscriptionService);
 

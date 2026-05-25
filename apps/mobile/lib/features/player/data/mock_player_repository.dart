@@ -56,7 +56,6 @@ class MockPlayerRepository implements PlayerRepository {
       expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 5)),
       streamable: true,
       offlineCapable: true,
-      headers: const <String, String>{},
     );
   }
 }

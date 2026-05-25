@@ -391,6 +391,25 @@ function createSmokeState() {
       async findById(id: string) {
         return chapters.get(id) ?? null;
       },
+      async findPublishedAudioAssetAccessContext(audioAssetKey: string) {
+        const chapter = [...chapters.values()].find((item) => item.audioAssetKey === audioAssetKey);
+        if (!chapter) {
+          return null;
+        }
+
+        const audiobook = audiobooks.get(chapter.audiobookId);
+        if (!audiobook || audiobook.status !== 'published' || chapter.status !== 'published') {
+          return null;
+        }
+
+        return {
+          audiobookId: audiobook.id,
+          audiobookStatus: audiobook.status,
+          chapterId: chapter.id,
+          chapterStatus: chapter.status,
+          premiumFlag: audiobook.premiumFlag,
+        };
+      },
       async createChapter(input) {
         const chapter: ChapterRow = {
           id: `chapter-${chapters.size + 1}`,

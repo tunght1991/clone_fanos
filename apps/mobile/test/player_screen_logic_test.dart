@@ -66,4 +66,37 @@ More context on the same point.
       isNull,
     );
   });
+
+  test('resolveInitialPlayableChapter skips unpublished requested chapters', () {
+    final chapters = <AudiobookChapter>[
+      const AudiobookChapter(
+        id: 'chapter-1',
+        title: 'One',
+        orderIndex: 1,
+        durationSec: 60,
+        audioAssetKey: 'audio/1.mp3',
+        transcript: null,
+        status: 'DRAFT',
+      ),
+      const AudiobookChapter(
+        id: 'chapter-2',
+        title: 'Two',
+        orderIndex: 2,
+        durationSec: 60,
+        audioAssetKey: 'audio/2.mp3',
+        transcript: null,
+        status: 'PUBLISHED',
+      ),
+    ];
+
+    expect(
+      resolveInitialPlayableChapter(
+        chapters,
+        requestedChapterId: 'chapter-1',
+        fallbackChapterId: null,
+      )?.id,
+      'chapter-2',
+    );
+    expect(filterPlayableChapters(chapters), hasLength(1));
+  });
 }

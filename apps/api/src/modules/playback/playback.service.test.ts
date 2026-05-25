@@ -99,6 +99,17 @@ function createContentRepositories(): ContentRepositoryBundle {
           },
         ];
       },
+      async findPublishedAudioAssetAccessContext(audioAssetKey: string) {
+        return audioAssetKey === 'audio/ch1.mp3'
+          ? {
+              audiobookId: 'book-1',
+              audiobookStatus: 'published',
+              chapterId: 'chapter-1',
+              chapterStatus: 'published',
+              premiumFlag: false,
+            }
+          : null;
+      },
       async findById(id: string) {
         return id === 'chapter-1'
           ? {
@@ -243,6 +254,9 @@ test('PlaybackService rejects progress for a chapter that belongs to another aud
       chapterRepository: {
         async findByAudiobookId() {
           return [];
+        },
+        async findPublishedAudioAssetAccessContext() {
+          return null;
         },
         async findById() {
           return {

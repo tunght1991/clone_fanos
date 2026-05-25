@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
 import test from 'node:test';
 
 import { SubscriptionService } from './subscription.service.js';
@@ -193,6 +194,8 @@ function createDependencies(): SubscriptionServiceDependencies & {
       billingMode: 'SANDBOX',
       allowSandbox: true,
     },
+    webhookSecret: 'webhook-secret',
+    allowedReturnUrlOrigins: ['https://app.example.com'],
     repositories,
     repoState,
   };
@@ -218,6 +221,51 @@ test('SubscriptionService creates checkout session for allowed plan/provider', a
   assert.equal(result.plan.id, 'plan-1');
   assert.ok(result.checkoutSessionId.startsWith('sub_chk_'));
   assert.ok(result.redirectUrl?.includes('checkoutSessionId='));
+});
+
+test('SubscriptionService allows relative return urls and configured absolute return urls', async () => {
+  const deps = createDependencies();
+  const service = new SubscriptionService(deps);
+
+  const relative = await service.checkout({
+    userId: 'user-1',
+    request: {
+      planId: 'plan-1',
+      provider: 'WEB_GATEWAY',
+      returnUrl: '/billing/return',
+    },
+  });
+
+  assert.ok(relative.redirectUrl?.includes('returnUrl=%2Fbilling%2Freturn'));
+
+  const absolute = await service.checkout({
+    userId: 'user-1',
+    request: {
+      planId: 'plan-1',
+      provider: 'WEB_GATEWAY',
+      returnUrl: 'https://app.example.com/billing/return',
+    },
+  });
+
+  assert.ok(absolute.redirectUrl?.includes('returnUrl=https%3A%2F%2Fapp.example.com%2Fbilling%2Freturn'));
+});
+
+test('SubscriptionService rejects checkout return urls outside the allow list', async () => {
+  const deps = createDependencies();
+  const service = new SubscriptionService(deps);
+
+  await assert.rejects(
+    () =>
+      service.checkout({
+        userId: 'user-1',
+        request: {
+          planId: 'plan-1',
+          provider: 'WEB_GATEWAY',
+          returnUrl: 'https://evil.example.com/billing/return',
+        },
+      }),
+    /Return URL .* is not allowed/,
+  );
 });
 
 test('SubscriptionService verifies a pending subscription using checkout session and activates entitlement', async () => {
@@ -344,14 +392,35 @@ test('SubscriptionService handles webhook idempotently', async () => {
     occurredAt: '2026-05-11T00:10:00.000Z',
     payload: {},
   };
+  const signature = buildWebhookSignature(deps.webhookSecret, event);
 
-  const first = await service.handleWebhook(event);
-  const second = await service.handleWebhook(event);
+  const first = await service.handleWebhook(event, signature);
+  const second = await service.handleWebhook(event, signature);
 
   assert.equal(first.accepted, true);
   assert.equal(first.applied, true);
   assert.equal(second.accepted, false);
   assert.equal(second.applied, false);
+});
+
+test('SubscriptionService rejects webhook events with a missing or invalid signature', async () => {
+  const deps = createDependencies();
+  const service = new SubscriptionService(deps);
+  const event = {
+    provider: 'WEB_GATEWAY' as const,
+    eventType: 'SUBSCRIPTION_CREATED' as const,
+    billingReference: 'billing-ref-1',
+    subscriptionId: 'sub-1',
+    checkoutSessionId: 'checkout-1',
+    occurredAt: '2026-05-11T00:10:00.000Z',
+    payload: {},
+  };
+
+  await assert.rejects(() => service.handleWebhook(event), /Missing subscription webhook signature/);
+  await assert.rejects(
+    () => service.handleWebhook(event, 'deadbeef'),
+    /Invalid subscription webhook signature/,
+  );
 });
 
 test('SubscriptionService maps subscription detail status and entitlement to API contract', async () => {
@@ -511,3 +580,7 @@ test('SubscriptionService does not re-grant an expired subscription when the sam
   assert.equal(deps.repoState.subscriptions.get('sub-1')?.status, 'expired');
   assert.equal(deps.repoState.subscriptions.get('sub-1')?.billingReference, 'receipt-token-1');
 });
+
+function buildWebhookSignature(secret: string, event: unknown): string {
+  return createHmac('sha256', secret).update(JSON.stringify(event)).digest('hex');
+}

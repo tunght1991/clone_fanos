@@ -1,5 +1,11 @@
 import type { DatabaseConnection, DatabaseExecutor } from '../../db/postgres.js';
-import type { AudiobookNarratorRow, AudiobookRow, ChapterRow, ContentStatus } from './content.types.js';
+import type {
+  AudiobookNarratorRow,
+  AudiobookRow,
+  ChapterRow,
+  ChapterStatus,
+  ContentStatus,
+} from './content.types.js';
 
 export interface PageOptions {
   limit: number;
@@ -61,6 +67,7 @@ export interface AudiobookRepository {
 export interface ChapterRepository {
   findByAudiobookId(audiobookId: string): Promise<ChapterRow[]>;
   findById(id: string): Promise<ChapterRow | null>;
+  findPublishedAudioAssetAccessContext(audioAssetKey: string): Promise<PublishedAudioAssetAccessContext | null>;
   createChapter(input: {
     audiobookId: string;
     title: string;
@@ -84,6 +91,14 @@ export interface ChapterRepository {
 export interface AudiobookNarratorRepository {
   findByAudiobookId(audiobookId: string): Promise<AudiobookNarratorRow[]>;
   findDetailedByAudiobookId(audiobookId: string): Promise<Array<AudiobookNarratorRow & { narratorName: string }>>;
+}
+
+export interface PublishedAudioAssetAccessContext {
+  audiobookId: string;
+  audiobookStatus: ContentStatus;
+  chapterId: string;
+  chapterStatus: ChapterStatus;
+  premiumFlag: boolean;
 }
 
 export interface AuthorRepository {
@@ -389,6 +404,28 @@ export class PostgresChapterRepository implements ChapterRepository {
        WHERE id = $1
        LIMIT 1`,
       [id],
+    );
+
+    return result.rows[0] ?? null;
+  }
+
+  async findPublishedAudioAssetAccessContext(
+    audioAssetKey: string,
+  ): Promise<PublishedAudioAssetAccessContext | null> {
+    const result = await this.database.query<PublishedAudioAssetAccessContext>(
+      `SELECT
+        chapters.id AS "chapterId",
+        chapters.status AS "chapterStatus",
+        audiobooks.id AS "audiobookId",
+        audiobooks.status AS "audiobookStatus",
+        audiobooks.premium_flag AS "premiumFlag"
+       FROM chapters
+       INNER JOIN audiobooks ON audiobooks.id = chapters.audiobook_id
+       WHERE chapters.audio_asset_key = $1
+         AND chapters.status = 'published'
+         AND audiobooks.status = 'published'
+       LIMIT 1`,
+      [audioAssetKey],
     );
 
     return result.rows[0] ?? null;

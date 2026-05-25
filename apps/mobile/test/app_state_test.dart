@@ -56,7 +56,7 @@ void main() {
     );
 
     final appState = AppState(
-      authRepository: MockAuthRepository(),
+      authRepository: _SessionValidatingAuthRepository(),
       contentRepository: MockDiscoveryRepository(),
       playerRepository: MockPlayerRepository(),
       engagementRepository: MockEngagementRepository(),
@@ -74,6 +74,44 @@ void main() {
     expect(appState.errorMessage, isNull);
     expect(appState.subscriptionRefreshError,
         contains('subscription refresh failed'));
+  });
+
+  test('AppState clears stored session when auth validation fails during bootstrap',
+      () async {
+    final sessionStore = InMemorySessionStore();
+    await sessionStore.write(
+      AuthSession(
+        tokenType: 'Bearer',
+        accessToken: 'access-invalid',
+        refreshToken: 'refresh-invalid',
+        expiresAt: DateTime.utc(2026, 6, 1, 0, 0, 0),
+        refreshExpiresAt: DateTime.utc(2026, 7, 1, 0, 0, 0),
+        user: const AuthUser(
+          id: 'user-demo',
+          email: 'demo@clonefanos.local',
+          displayName: 'Demo User',
+          avatarAssetKey: null,
+          role: AuthRole.user,
+          isActive: true,
+        ),
+      ),
+    );
+
+    final appState = AppState(
+      authRepository: MockAuthRepository(),
+      contentRepository: MockDiscoveryRepository(),
+      playerRepository: MockPlayerRepository(),
+      engagementRepository: MockEngagementRepository(),
+      subscriptionRepository: MockSubscriptionRepository(),
+      onboardingStore: InMemoryOnboardingStore(),
+      sessionStore: sessionStore,
+    );
+
+    await appState.bootstrap();
+
+    expect(appState.phase, AppPhase.onboarding);
+    expect(appState.session, isNull);
+    expect(await sessionStore.read(), isNull);
   });
 
   test(
@@ -351,6 +389,24 @@ class _RefreshingAuthRepository extends MockAuthRepository {
       ),
     );
   }
+
+  @override
+  Future<AuthUser?> me({
+    required String accessToken,
+  }) async {
+    if (accessToken != 'access-refreshed') {
+      return null;
+    }
+
+    return const AuthUser(
+      id: 'user-demo',
+      email: 'demo@clonefanos.local',
+      displayName: 'Demo User',
+      avatarAssetKey: null,
+      role: AuthRole.user,
+      isActive: true,
+    );
+  }
 }
 
 class _FailingRefreshAuthRepository extends MockAuthRepository {
@@ -359,5 +415,25 @@ class _FailingRefreshAuthRepository extends MockAuthRepository {
     required String refreshToken,
   }) async {
     throw StateError('refresh failed');
+  }
+}
+
+class _SessionValidatingAuthRepository extends MockAuthRepository {
+  @override
+  Future<AuthUser?> me({
+    required String accessToken,
+  }) async {
+    if (accessToken != 'access-1') {
+      return null;
+    }
+
+    return const AuthUser(
+      id: 'user-demo',
+      email: 'demo@clonefanos.local',
+      displayName: 'Demo User',
+      avatarAssetKey: null,
+      role: AuthRole.user,
+      isActive: true,
+    );
   }
 }

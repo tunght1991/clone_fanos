@@ -96,8 +96,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (detail == null) {
       throw StateError('Audiobook not found');
     }
-    if (detail.chapters.isEmpty) {
-      throw StateError('Audiobook has no chapters');
+    if (filterPlayableChapters(detail.chapters).isEmpty) {
+      throw StateError('Audiobook has no published chapters');
     }
 
     final resumeProgress = await widget.appState.playerRepository.getProgress(
@@ -105,12 +105,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
       userId: widget.appState.currentUserId,
       accessToken: widget.appState.accessToken,
     );
-    final preferredChapterId =
-        widget.initialChapterId ?? resumeProgress?.chapterId;
-    final chapter = detail.chapters.firstWhere(
-      (item) => item.id == preferredChapterId,
-      orElse: () => detail.chapters.first,
+    final chapter = resolveInitialPlayableChapter(
+      detail.chapters,
+      requestedChapterId: widget.initialChapterId,
+      fallbackChapterId: resumeProgress?.chapterId,
     );
+    if (chapter == null) {
+      throw StateError('Audiobook has no published chapters');
+    }
     final initialPosition =
         widget.initialPositionMs ?? resumeProgress?.positionMs ?? 0;
     final assetAccess =
@@ -482,6 +484,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
 
+    if (!isPlayableChapter(chapter)) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage = 'Selected chapter is not published';
+        _status = PlayerStatus.error;
+      });
+      return;
+    }
+
     if (syncCurrentProgress) {
       await _syncProgress(completed: _status == PlayerStatus.ended);
     }
@@ -699,6 +713,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
 
           final data = _data!;
+          final playableChapters = filterPlayableChapters(data.detail.chapters);
           final displayStatus =
               _status == PlayerStatus.locked && !_isPremiumLocked(data)
                   ? PlayerStatus.paused
@@ -743,13 +758,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         speed: _speed,
                         sleepTimer: _sleepTimer,
                         hasPreviousChapter: findAdjacentPlayableChapter(
-                              data.detail.chapters,
+                              playableChapters,
                               data.chapter.id,
                               direction: -1,
                             ) !=
                             null,
                         hasNextChapter: findAdjacentPlayableChapter(
-                              data.detail.chapters,
+                              playableChapters,
                               data.chapter.id,
                               direction: 1,
                             ) !=
@@ -772,7 +787,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ),
                       const SizedBox(height: 20),
                       _ChapterPicker(
-                        chapters: data.detail.chapters,
+                        chapters: playableChapters,
                         activeChapterId: data.chapter.id,
                         onChapterSelected: (chapter) {
                           unawaited(

@@ -10,18 +10,56 @@ test('extractBearerToken parses bearer authorization header', () => {
 });
 
 test('resolveRequestPrincipal falls back to x-user-id when no bearer token is present', async () => {
-  const principal = await resolveRequestPrincipal(
-    {
-      async resolvePrincipalFromToken() {
-        return null;
-      },
-    } as never,
-    undefined,
-    'user-123',
-  );
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'development';
 
-  assert.equal(principal.userId, 'user-123');
-  assert.equal(principal.role, 'user');
+  try {
+    const principal = await resolveRequestPrincipal(
+      {
+        async resolvePrincipalFromToken() {
+          return null;
+        },
+      } as never,
+      undefined,
+      'user-123',
+    );
+
+    assert.equal(principal.userId, 'user-123');
+    assert.equal(principal.role, 'user');
+  } finally {
+    if (previousNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+  }
+});
+
+test('resolveRequestPrincipal rejects x-user-id fallback in production', async () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+
+  try {
+    await assert.rejects(
+      () =>
+        resolveRequestPrincipal(
+          {
+            async resolvePrincipalFromToken() {
+              return null;
+            },
+          } as never,
+          undefined,
+          'user-123',
+        ),
+      /Missing authorization/,
+    );
+  } finally {
+    if (previousNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+  }
 });
 
 test('requireRole rejects non-admin principals for admin routes', () => {

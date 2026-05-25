@@ -1,4 +1,5 @@
 import type { AudiobookDetailResponseDto, AudiobookListResponseDto } from './content.dto.js';
+import type { PublishedAudioAssetAccessContext } from './content.repository.js';
 import type { ContentService } from './content.service.js';
 
 export interface AudiobookListQuery {
@@ -39,5 +40,10 @@ export class ContentController {
       data: detail,
     };
   }
-}
 
+  async getPublishedAudioAssetAccessContext(
+    audioAssetKey: string,
+  ): Promise<PublishedAudioAssetAccessContext | null> {
+    return this.contentService.getPublishedAudioAssetAccessContext(audioAssetKey);
+  }
+}

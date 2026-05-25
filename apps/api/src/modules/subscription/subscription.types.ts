@@ -9,6 +9,7 @@ export interface SubscriptionRuntimeConfig {
   provider?: SubscriptionBillingProvider;
   billingMode?: SubscriptionBillingMode;
   webhookSecret?: string;
+  allowedReturnUrlOrigins?: string[];
 }
 
 export interface SubscriptionPolicy {
@@ -17,4 +18,3 @@ export interface SubscriptionPolicy {
   billingMode: SubscriptionBillingMode;
   allowSandbox: boolean;
 }
-

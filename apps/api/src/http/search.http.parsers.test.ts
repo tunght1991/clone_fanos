@@ -43,10 +43,10 @@ test('parseSearchRequestQuery trims and normalizes search query parameters', () 
     query: '  clean architecture  ',
     page: '2',
     pageSize: '25',
-    categoryId: '  cat-1 ',
-    tagId: ' tag-2 ',
-    authorId: ' author-3 ',
-    narratorId: ' narrator-4 ',
+    categoryId: '  11111111-1111-4111-8111-111111111111 ',
+    tagId: ' 22222222-2222-4222-8222-222222222222 ',
+    authorId: ' 33333333-3333-4333-8333-333333333333 ',
+    narratorId: ' 44444444-4444-4444-8444-444444444444 ',
     premiumFlag: 'true',
     sortBy: 'POPULARITY',
     sortOrder: 'ASC',
@@ -56,14 +56,25 @@ test('parseSearchRequestQuery trims and normalizes search query parameters', () 
     query: 'clean architecture',
     page: 2,
     pageSize: 25,
-    categoryId: 'cat-1',
-    tagId: 'tag-2',
-    authorId: 'author-3',
-    narratorId: 'narrator-4',
+    categoryId: '11111111-1111-4111-8111-111111111111',
+    tagId: '22222222-2222-4222-8222-222222222222',
+    authorId: '33333333-3333-4333-8333-333333333333',
+    narratorId: '44444444-4444-4444-8444-444444444444',
     premiumFlag: true,
     sortBy: 'POPULARITY',
     sortOrder: 'ASC',
   });
+});
+
+test('parseSearchRequestQuery rejects malformed UUID filters', () => {
+  assert.throws(
+    () =>
+      parseSearchRequestQuery({
+        query: 'clean architecture',
+        authorId: 'author-3',
+      }),
+    /Invalid UUID value for authorId/i,
+  );
 });
 
 test('parseSearchRequestQuery rejects unknown fields', () => {

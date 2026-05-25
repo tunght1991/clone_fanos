@@ -22,8 +22,8 @@ export class SubscriptionHttpController {
   }
 
   @Get('me')
-  async getMySubscription(@Headers('authorization') authorization: string | undefined, @Headers('x-user-id') userId: string | undefined) {
-    const principal = await this.resolvePrincipal(authorization, userId);
+  async getMySubscription(@Headers('authorization') authorization: string | undefined) {
+    const principal = await this.resolvePrincipal(authorization);
     const result = await this.subscriptionController.getMySubscription(principal.userId);
     if (!result) {
       throw new NotFoundException(`Subscription for user ${principal.userId} not found`);
@@ -35,10 +35,9 @@ export class SubscriptionHttpController {
   @Post('verify')
   async verifySubscription(
     @Headers('authorization') authorization: string | undefined,
-    @Headers('x-user-id') userId: string | undefined,
     @Body() body: unknown = {},
   ) {
-    const principal = await this.resolvePrincipal(authorization, userId);
+    const principal = await this.resolvePrincipal(authorization);
     const result = await this.subscriptionController.verifySubscriptionWithContext(
       principal.userId,
       parseSubscriptionVerifyRequest(body),
@@ -53,21 +52,23 @@ export class SubscriptionHttpController {
   @Post('checkout')
   async checkout(
     @Headers('authorization') authorization: string | undefined,
-    @Headers('x-user-id') userId: string | undefined,
     @Body() body: unknown,
   ) {
-    const principal = await this.resolvePrincipal(authorization, userId);
+    const principal = await this.resolvePrincipal(authorization);
     return this.subscriptionController.checkout(principal.userId, parseSubscriptionCheckoutRequest(body));
   }
 
   @Post('webhook')
-  async webhook(@Body() body: unknown) {
-    return this.subscriptionController.handleWebhook(parseSubscriptionWebhookEvent(body));
+  async webhook(
+    @Headers('x-webhook-signature') signature: string | undefined,
+    @Body() body: unknown,
+  ) {
+    return this.subscriptionController.handleWebhook(parseSubscriptionWebhookEvent(body), signature);
   }
 
-  private async resolvePrincipal(authorization: string | undefined, userId: string | undefined) {
+  private async resolvePrincipal(authorization: string | undefined) {
     try {
-      return await resolveRequestPrincipal(this.authController, authorization, userId);
+      return await resolveRequestPrincipal(this.authController, authorization);
     } catch (error) {
       if (error instanceof AuthContextError) {
         throw new UnauthorizedException(error.message);

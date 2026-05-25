@@ -36,7 +36,7 @@ export async function resolveRequestPrincipal(
     throw new AuthContextError('Invalid authorization token');
   }
 
-  if (fallbackUserId && fallbackUserId.trim()) {
+  if (fallbackUserId && fallbackUserId.trim() && process.env.NODE_ENV !== 'production') {
     return {
       userId: fallbackUserId.trim(),
       email: `${fallbackUserId.trim()}@local`,

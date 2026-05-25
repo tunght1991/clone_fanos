@@ -16,6 +16,50 @@ bool isPlayableChapter(AudiobookChapter chapter) {
   return chapter.status.toUpperCase() == 'PUBLISHED';
 }
 
+List<AudiobookChapter> filterPlayableChapters(List<AudiobookChapter> chapters) {
+  return chapters.where(isPlayableChapter).toList();
+}
+
+AudiobookChapter? findPlayableChapterById(
+  List<AudiobookChapter> chapters,
+  String? chapterId,
+) {
+  if (chapterId == null) {
+    return null;
+  }
+
+  for (final chapter in chapters) {
+    if (chapter.id == chapterId && isPlayableChapter(chapter)) {
+      return chapter;
+    }
+  }
+
+  return null;
+}
+
+AudiobookChapter? resolveInitialPlayableChapter(
+  List<AudiobookChapter> chapters, {
+  String? requestedChapterId,
+  String? fallbackChapterId,
+}) {
+  final requested = findPlayableChapterById(chapters, requestedChapterId);
+  if (requested != null) {
+    return requested;
+  }
+
+  final fallback = findPlayableChapterById(chapters, fallbackChapterId);
+  if (fallback != null) {
+    return fallback;
+  }
+
+  final playableChapters = filterPlayableChapters(chapters);
+  if (playableChapters.isEmpty) {
+    return null;
+  }
+
+  return playableChapters.first;
+}
+
 AudiobookChapter? findAdjacentPlayableChapter(
   List<AudiobookChapter> chapters,
   String activeChapterId, {

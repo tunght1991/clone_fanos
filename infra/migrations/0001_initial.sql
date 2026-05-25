@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS audiobook_narrators (
   audiobook_id uuid NOT NULL REFERENCES audiobooks (id) ON DELETE CASCADE,
   narrator_id uuid NOT NULL REFERENCES narrators (id) ON DELETE RESTRICT,
   role_index smallint NOT NULL CHECK (role_index BETWEEN 1 AND 3),
-  is_primary boolean NOT NULL DEFAULT false,
+  is_primary boolean NOT NULL DEFAULT false CHECK (is_primary = (role_index = 1)),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -356,11 +356,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_active_user_uidx
   ON subscriptions (user_id)
   WHERE status = 'active';
 
-CREATE INDEX IF NOT EXISTS subscriptions_billing_reference_idx
+CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_billing_reference_uidx
   ON subscriptions (billing_reference);
 
-CREATE INDEX IF NOT EXISTS subscriptions_checkout_session_id_idx
+CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_checkout_session_id_uidx
   ON subscriptions (checkout_session_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_provider_subscription_id_uidx
+  ON subscriptions (provider_subscription_id);
 
 CREATE TABLE IF NOT EXISTS subscription_webhook_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

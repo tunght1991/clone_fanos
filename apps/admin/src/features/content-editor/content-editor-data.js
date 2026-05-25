@@ -40,6 +40,15 @@ function normalizeAudiobookChapterDrafts(chapters) {
   return chapters.map((chapter, index) => normalizeAudiobookChapterDraft(chapter, index));
 }
 
+function resolveChapterCount(record) {
+  const chapterCount = Number(record?.chapterCount);
+  if (Number.isFinite(chapterCount) && chapterCount > 0) {
+    return chapterCount;
+  }
+
+  return Array.isArray(record?.chapters) ? record.chapters.length : 0;
+}
+
 export const DEMO_AUTHOR_OPTIONS = [
   { id: 'author-001', name: 'Nguyễn Hoàng' },
   { id: 'author-002', name: 'Mai Linh' },
@@ -174,7 +183,7 @@ export function buildAudiobookEditorDraftFromRecord(record) {
     languageCode: String(record?.languageCode ?? DEFAULT_EDITOR_LANGUAGE_CODE),
     status: String(record?.status ?? 'DRAFT').toUpperCase(),
     publishedAt: record?.publishedAt ?? null,
-    chapterCount: Number(record?.chapterCount ?? (Array.isArray(record?.chapters) ? record.chapters.length : 0)),
+    chapterCount: resolveChapterCount(record),
     chapters: normalizeAudiobookChapterDrafts(record?.chapters),
     narrators: normalizeNarratorSlots(record),
     categoryIds,

@@ -103,7 +103,10 @@ function createSubscriptionServiceStub(overrides: Partial<SubscriptionService> =
         expiresAt: '2026-05-11T00:15:00.000Z',
       };
     },
-    async handleWebhook(event: SubscriptionWebhookEventDto): Promise<SubscriptionWebhookResult> {
+    async handleWebhook(
+      event: SubscriptionWebhookEventDto,
+      signature?: string,
+    ): Promise<SubscriptionWebhookResult> {
       return {
         accepted: true,
         applied: event.eventType === 'SUBSCRIPTION_CREATED',
@@ -187,7 +190,7 @@ test('SubscriptionController delegates webhook events to the service', async () 
     },
   };
 
-  const result = await controller.handleWebhook(event);
+  const result = await controller.handleWebhook(event, 'signature');
 
   assert.equal(result.accepted, true);
   assert.equal(result.applied, true);

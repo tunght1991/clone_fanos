@@ -55,6 +55,17 @@ function createContentServiceStub(overrides: Partial<ContentService> = {}): Cont
           }
         : null;
     },
+    async getPublishedAudioAssetAccessContext(audioAssetKey: string) {
+      return audioAssetKey === 'audio/book-1/chapter-1.mp3'
+        ? {
+            audiobookId: 'book-1',
+            audiobookStatus: 'published',
+            chapterId: 'chapter-1',
+            chapterStatus: 'published',
+            premiumFlag: true,
+          }
+        : null;
+    },
     ...overrides,
   } as ContentService;
 }

@@ -100,6 +100,17 @@ function createRepositoryBundle(overrides: Partial<ContentRepositoryBundle> = {}
           },
         ];
       },
+      async findPublishedAudioAssetAccessContext(audioAssetKey: string) {
+        return audioAssetKey === 'audio/ch1.mp3'
+          ? {
+              audiobookId: 'book-1',
+              audiobookStatus: 'published',
+              chapterId: 'chapter-1',
+              chapterStatus: 'published',
+              premiumFlag: true,
+            }
+          : null;
+      },
       async updateChapter(input) {
         return {
           id: input.id,

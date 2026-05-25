@@ -129,14 +129,24 @@ export function resolveSubscriptionEntitlement(snapshot: SubscriptionEntitlement
   const status = resolveSubscriptionEntitlementStatus(snapshot);
   const canAccessPremium = status === 'ACTIVE' || status === 'TRIAL';
 
-  return {
+  const entitlement: SubscriptionEntitlementDto = {
     status,
     canAccessPremium,
-    isTrial: status === 'TRIAL' ? true : snapshot.isTrial,
-    expiresAt: snapshot.expiresAt ?? undefined,
     checkedAt: snapshot.checkedAt ?? new Date().toISOString(),
     source: snapshot.source ?? 'subscription',
   };
+
+  if (status === 'TRIAL') {
+    entitlement.isTrial = true;
+  } else if (snapshot.isTrial !== undefined) {
+    entitlement.isTrial = snapshot.isTrial;
+  }
+
+  if (snapshot.expiresAt !== undefined && snapshot.expiresAt !== null) {
+    entitlement.expiresAt = snapshot.expiresAt;
+  }
+
+  return entitlement;
 }
 
 export const SUBSCRIPTION_PLAN_STATUSES = ['ACTIVE', 'INACTIVE', 'ARCHIVED'] as const;

@@ -46,7 +46,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Login'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Hello, Demo User'), findsOneWidget);
+    expect(find.textContaining('Hello, Admin One'), findsOneWidget);
     expect(find.text('Continue listening'), findsWidgets);
 
     await tester.tap(

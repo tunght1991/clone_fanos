@@ -202,6 +202,50 @@ Mục tiêu: cho phép admin tạo audiobook và chapters trong cùng một subm
 Ghi chú:
 - Trạng thái Sprint 9 đã được đối chiếu với code thực tế và targeted tests trong `apps/api` và `apps/admin`.
 
+## Sprint 10: Risk Hardening and Scope Control
+
+Mục tiêu: khóa các rủi ro còn lại quanh subscription, search/reindex, offline playback, narrator role rules, và asset access consistency.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Chốt subscription scope và entitlement behavior | Backend/Product | DONE | Subscription flow và entitlement đã được siết theo contract |
+| Khóa search/reindex consistency sau content changes | Backend/Platform | DONE | Reindex rollback và search validation đã có coverage |
+| Giữ offline playback không vượt MVP | Mobile/Product | DONE | Offline playback boundary đã được khóa theo runtime contract |
+| Enforce narrator cardinality và role rules | Backend/Admin/Mobile | DONE | `role_index` 1..3 và primary narrator invariant đã được enforced |
+| Đồng nhất asset access giữa backend và mobile | Backend/Mobile | DONE | Asset access contract và premium gating đã đồng bộ |
+
+### Checkpoint Sprint 10
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Subscription entitlement ổn định | Backend | DONE | `/subscriptions/me` phản ánh entitlement đúng contract |
+| Search/reindex không drift | Backend/Platform | DONE | Alias swap, rollback và search filter validation đã xanh |
+| Offline playback boundary giữ nguyên | Mobile | DONE | Mobile không tự mở rộng offline capability ngoài MVP |
+| Narrator rules đồng nhất | Backend/Admin/Mobile | DONE | Backend, admin và mobile cùng tuân theo cùng invariant |
+| Asset access contract đồng nhất | Backend/Mobile | DONE | Premium asset access chỉ mở theo entitlement hợp lệ |
+
+## Sprint 11: Release Readiness and Contract Consistency
+
+Mục tiêu: đưa hệ thống tới trạng thái release-ready bằng cách khóa các trust boundary còn lại, giữ contract giữa backend/mobile/admin/shared nhất quán, và mở rộng CI/test coverage cho các rủi ro còn lại.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Loại bỏ fallback identity paths trong production request handling | Backend | DONE | Production routes phải buộc bearer token |
+| Giữ subscription, asset access và search validation strict | Backend | DONE | Webhook signature, returnUrl guard và UUID parsing phải được khóa |
+| Revalidate mobile sessions trước khi vào authenticated state | Mobile | DONE | Stored session phải được kiểm tra lại qua `me()` trước khi activate |
+| Chặn unpublished chapters trên mọi mobile path | Mobile | DONE | Playable chapter filtering phải được enforced ở load, select, và start |
+| Đồng bộ shared DTOs, DB constraints và UI behavior | Shared/Backend/Admin/Mobile | DONE | Contract drift bị chặn bởi schema, validation và tests |
+| Mở rộng CI/root validation cho API, admin, mobile, shared | Platform/QA | DONE | `pnpm check` bao phủ mobile test và shared contract checks |
+
+### Checkpoint Sprint 11
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Production auth boundary đã được khóa | Backend | DONE | Không còn impersonation qua fallback identity path |
+| Mobile bootstrap an toàn hơn | Mobile | DONE | Restored session không còn tự động vào authenticated state khi chưa được revalidate |
+| Contract drift bị chặn | Shared/Backend | DONE | DTO và migration assertions ngăn lệch schema/runtime |
+| Root validation đủ rộng | Platform/QA | DONE | `pnpm check` và targeted suites chặn regression trước merge |
+
 ## Rủi ro theo dõi xuyên suốt
 
 | Rủi ro | Owner | Status | Ghi chú |

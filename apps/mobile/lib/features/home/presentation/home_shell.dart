@@ -12,6 +12,7 @@ import '../../engagement/presentation/favorites_screen.dart';
 import '../../discovery/domain/discovery_models.dart';
 import '../../discovery/domain/discovery_repository.dart';
 import '../../player/presentation/player_screen.dart';
+import '../../player/presentation/player_screen_logic.dart';
 import '../../subscription/domain/subscription_models.dart';
 import '../../subscription/presentation/subscription_screen.dart';
 
@@ -1129,13 +1130,17 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
     required bool resume,
     AudiobookChapter? chapter,
   }) {
+    final playableChapters = filterPlayableChapters(detail.chapters);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => PlayerScreen(
           appState: widget.appState,
           audiobookId: detail.id,
           initialDetail: detail,
-          initialChapterId: chapter?.id ?? (resume ? null : (detail.chapters.isEmpty ? null : detail.chapters.first.id)),
+          initialChapterId: chapter?.id ??
+              (resume
+                  ? null
+                  : (playableChapters.isEmpty ? null : playableChapters.first.id)),
           initialPositionMs: null,
         ),
       ),
@@ -1270,16 +1275,19 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
               const SizedBox(height: 20),
               if (locked)
                 _LockNotice(onUpgrade: _openSubscription)
-              else if (data.detail.chapters.isEmpty)
+              else if (filterPlayableChapters(data.detail.chapters).isEmpty)
                 const _EmptyCard(
                   icon: Icons.queue_music_outlined,
-                  title: 'Chưa có chapter',
-                  description: 'Chapters sác xuất hiển khi admin upload nội dung.',
+                  title: 'Chưa có chapter phát hành',
+                  description: 'Chỉ các chapter đã phát hành mới hiển thị trong danh sách.',
                 )
               else
-                _ChapterList(chapters: data.detail.chapters, onTap: (chapter) {
-                  _openPlayerFromDetail(data.detail, resume: false, chapter: chapter);
-                }),
+                _ChapterList(
+                  chapters: filterPlayableChapters(data.detail.chapters),
+                  onTap: (chapter) {
+                    _openPlayerFromDetail(data.detail, resume: false, chapter: chapter);
+                  },
+                ),
             ],
           );
         },

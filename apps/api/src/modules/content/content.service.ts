@@ -1,4 +1,5 @@
 import { isNarratorRoleIndexValid } from '../../../../../packages/shared/src/contracts/content.js';
+import type { PublishedAudioAssetAccessContext } from './content.repository.js';
 import type { AudiobookDetailDto, AudiobookListItemDto, AudiobookListResponseDto } from './content.dto.js';
 import type { ContentRepositoryBundle } from './content.repository.js';
 
@@ -80,6 +81,12 @@ export class ContentService {
         };
       }),
     };
+  }
+
+  async getPublishedAudioAssetAccessContext(
+    audioAssetKey: string,
+  ): Promise<PublishedAudioAssetAccessContext | null> {
+    return this.repositories.chapterRepository.findPublishedAudioAssetAccessContext(audioAssetKey);
   }
 
   private toListItemDto(item: Awaited<ReturnType<ContentRepositoryBundle['audiobookRepository']['listPublished']>>[number]): AudiobookListItemDto {

@@ -20,6 +20,19 @@ function normalizeRecord(record) {
   };
 }
 
+function resolveChapterCount(record, fallbackChapters = []) {
+  const chapterCount = Number(record?.chapterCount);
+  if (Number.isFinite(chapterCount) && chapterCount > 0) {
+    return chapterCount;
+  }
+
+  if (Array.isArray(record?.chapters) && record.chapters.length > 0) {
+    return record.chapters.length;
+  }
+
+  return Array.isArray(fallbackChapters) ? fallbackChapters.length : 0;
+}
+
 function unwrapAudiobookResponse(response) {
   const wrapperKeys = ['data', 'audiobook', 'record', 'result', 'payload', 'item'];
   const visited = new Set();
@@ -90,18 +103,15 @@ export function createAudiobookEditorRepository({
 
         const response = await adminApi.createAudiobook(payload);
         const recordFromApi = unwrapAudiobookResponse(response);
+        const fallbackChapters = Array.isArray(recordFromApi?.chapters)
+          ? recordFromApi.chapters
+          : Array.isArray(payload.chapters)
+            ? payload.chapters
+            : state.draft.chapters;
         const record = normalizeRecord({
           ...recordFromApi,
-          chapterCount: Number.isFinite(Number(recordFromApi?.chapterCount))
-            ? Number(recordFromApi.chapterCount)
-            : Array.isArray(recordFromApi?.chapters)
-              ? recordFromApi.chapters.length
-              : Array.isArray(payload.chapters)
-                ? payload.chapters.length
-                : state.draft.chapterCount,
-          chapters: Array.isArray(recordFromApi?.chapters)
-            ? recordFromApi.chapters
-            : payload.chapters,
+          chapterCount: resolveChapterCount(recordFromApi, fallbackChapters),
+          chapters: fallbackChapters,
         });
         if (record) {
           records = upsertAudiobookRecord(records, record);
@@ -131,7 +141,7 @@ export function createAudiobookEditorRepository({
       id: nextId,
       status: currentRecord.status ?? 'DRAFT',
       publishedAt: currentRecord.publishedAt ?? null,
-      chapterCount: currentRecord.chapterCount ?? 0,
+      chapterCount: resolveChapterCount(currentRecord, payload.chapters ?? state.draft.chapters),
       chapters: currentRecord.chapters ?? payload.chapters ?? state.draft.chapters,
       narrators: currentRecord.narrators ?? state.draft.narrators,
       categoryIds: currentRecord.categoryIds ?? state.draft.categoryIds,

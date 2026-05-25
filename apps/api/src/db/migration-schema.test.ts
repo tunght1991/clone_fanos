@@ -8,8 +8,12 @@ test('initial migration enforces narrator role index bounds for three voices', (
   const sql = readFileSync(migrationPath, 'utf8');
 
   assert.match(sql, /role_index smallint NOT NULL CHECK \(role_index BETWEEN 1 AND 3\)/);
+  assert.match(sql, /is_primary boolean NOT NULL DEFAULT false CHECK \(is_primary = \(role_index = 1\)\)/);
   assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS audiobook_narrators_role_uidx/);
   assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS audiobook_narrators_primary_uidx/);
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_billing_reference_uidx/);
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_checkout_session_id_uidx/);
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_provider_subscription_id_uidx/);
   assert.match(sql, /CREATE TABLE IF NOT EXISTS subscription_receipt_verifications/);
   assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS subscription_receipt_verifications_idempotency_uidx/);
 });

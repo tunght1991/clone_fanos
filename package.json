@@ -11,10 +11,11 @@
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm mobile:test",
     "api:dev": "pnpm --dir apps/api dev",
     "api:start": "pnpm --dir apps/api start",
     "api:migrate": "pnpm --dir apps/api migrate",
-    "api:test": "pnpm --dir apps/api test"
+    "api:test": "pnpm --dir apps/api test",
+    "mobile:test": "cd apps/mobile && flutter test"
   }
 }
