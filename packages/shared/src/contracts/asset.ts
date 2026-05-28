@@ -10,6 +10,8 @@ export const ASSET_PURPOSES = ['STREAM', 'DOWNLOAD', 'THUMBNAIL', 'PREVIEW'] as 
 
 export type AssetPurpose = (typeof ASSET_PURPOSES)[number];
 
+export const ASSET_ACCESS_OFFLINE_CAPABLE = false as const;
+
 export interface GetAssetAccessRequest {
   assetKey: string;
   kind: AssetKind;

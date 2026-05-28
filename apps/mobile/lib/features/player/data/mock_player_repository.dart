@@ -51,11 +51,11 @@ class MockPlayerRepository implements PlayerRepository {
     required String? accessToken,
   }) async {
     return AudioAssetAccess(
-      provider: 'LOCALFILE',
-      url: 'assets/audio/demo_chapter.wav',
+      provider: 'CDN',
+      url: 'https://cdn.clonefanos.local/audio/demo_chapter.wav',
       expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 5)),
       streamable: true,
-      offlineCapable: true,
+      offlineCapable: false,
     );
   }
 }

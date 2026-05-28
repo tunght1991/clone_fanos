@@ -82,10 +82,10 @@ export function renderContentDashboardView({ state, session }) {
         <div>
           <div class="panel-kicker">Content dashboard</div>
           <h2>Danh sách audiobook</h2>
-          <p>Search, filter và mở vào editor theo từng item. Nguồn dữ liệu: ${escapeHtml(source)}.</p>
+          <p>Search, filter, and open the editor for each item. Source data: ${escapeHtml(source)}.</p>
         </div>
         <div class="panel-actions">
-          ${renderButton({ label: 'Reset filters', href: '#/content', variant: 'secondary' })}
+          ${renderButton({ label: 'Clear filters', href: '#/content', variant: 'secondary' })}
           ${renderButton({ label: 'Tạo audiobook', href: '#/content/new', variant: 'primary' })}
         </div>
       </div>
@@ -94,12 +94,12 @@ export function renderContentDashboardView({ state, session }) {
 
       <form class="dashboard-filters" data-content-dashboard-filters>
         <label>
-          <span>Từ khóa</span>
+          <span>Search</span>
           <input
             name="query"
             type="search"
             value="${escapeHtml(filters.query)}"
-            placeholder="Tìm theo title, author, narrator, tag"
+            placeholder="Search by title, author, narrator, or tag"
           />
         </label>
         <label>
@@ -113,7 +113,7 @@ export function renderContentDashboardView({ state, session }) {
           <input name="page" type="number" min="1" value="${escapeHtml(String(meta.page))}" />
         </label>
         ${renderButton({
-          label: loading ? 'Đang tải...' : 'Áp dụng',
+          label: loading ? 'Đang tải...' : 'Apply filters',
           variant: 'primary',
           buttonType: 'submit',
         })}

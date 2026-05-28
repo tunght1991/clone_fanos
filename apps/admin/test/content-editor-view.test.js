@@ -30,6 +30,9 @@ test('renderAudiobookEditorView renders initial chapter editor in create mode', 
 
   assert.match(html, /data-editor-add-chapter/);
   assert.match(html, /Chapter 1/);
+  assert.match(html, /Narrator 1/);
+  assert.match(html, /Narrator 2/);
+  assert.match(html, /Narrator 3/);
   assert.match(html, /data-editor-chapter-index="0"/);
   assert.match(html, /name="chapterTitle-0"/);
 });

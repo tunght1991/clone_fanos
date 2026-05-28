@@ -982,11 +982,8 @@ class _PlayerHeader extends StatelessWidget {
                         CloneFanosStatusChip(label: status.name),
                         CloneFanosStatusChip(label: assetAccess.provider),
                         CloneFanosStatusChip(
-                            label: assetAccess.streamable
-                                ? 'streamable'
-                                : 'download-only'),
-                        if (assetAccess.offlineCapable)
-                          const CloneFanosStatusChip(label: 'offline-ready'),
+                          label: describeAudioAssetAccess(assetAccess),
+                        ),
                       ],
                     ),
                   ],

@@ -10,6 +10,12 @@ export function isNarratorRoleIndexValid(roleIndex: number): boolean {
   return Number.isInteger(roleIndex) && roleIndex >= 1 && roleIndex <= 3;
 }
 
+export function assertNarratorRoleIndex(roleIndex: number): void {
+  if (!isNarratorRoleIndexValid(roleIndex)) {
+    throw new Error(`Invalid narrator role index ${roleIndex}`);
+  }
+}
+
 export interface ContentAuthorDto {
   id: string;
   name: string;

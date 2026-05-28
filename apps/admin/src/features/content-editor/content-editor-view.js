@@ -1,6 +1,7 @@
 import {
   filterEditorOptions,
   getEditorPublishWarning,
+  formatNarratorSlotLabel,
 } from './content-editor-data.js';
 import { renderBadge, renderButton } from '../../ui/primitives.js';
 import {
@@ -119,23 +120,24 @@ function renderNarratorSlots(state) {
     .map((slot) => {
       const query = state.ui.narratorQueries[slot.roleIndex] ?? '';
       const options = filterEditorOptions(DEMO_NARRATOR_OPTIONS, query);
+      const slotLabel = formatNarratorSlotLabel(slot.roleIndex);
 
       return `
         <div class="panel narrator-slot">
-          <div class="panel-kicker">Narrator ${slot.roleIndex}</div>
+          <div class="panel-kicker">${escapeHtml(slotLabel)}</div>
           <label class="editor-label">
-            <span>Tìm narrator</span>
+            <span>Tìm ${escapeHtml(slotLabel)}</span>
             <input
               type="search"
               data-editor-search="narrator-${slot.roleIndex}"
               value="${escapeHtml(query)}"
-              placeholder="Tìm narrator"
+              placeholder="Tìm ${escapeHtml(slotLabel)}"
             />
           </label>
           <label class="editor-label">
-            <span>Chọn narrator</span>
+            <span>Chọn ${escapeHtml(slotLabel)}</span>
             <select data-editor-narrator-slot="${escapeHtml(String(slot.roleIndex))}">
-              <option value="">Chọn narrator</option>
+              <option value="">Chọn ${escapeHtml(slotLabel)}</option>
               ${options
                 .map(
                   (option) => `
@@ -144,11 +146,11 @@ function renderNarratorSlots(state) {
                     </option>
                   `,
                 )
-                .join('')}
+              .join('')}
             </select>
           </label>
           <div class="slot-summary">
-            ${escapeHtml(slot.narratorName || 'Chưa chọn')}
+            ${escapeHtml(slot.narratorName || `Chưa chọn ${slotLabel}`)}
           </div>
         </div>
       `;

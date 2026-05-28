@@ -26,9 +26,9 @@ void main() {
       accessToken: 'access-token',
     );
 
-    expect(access.provider, 'LOCALFILE');
-    expect(access.url, startsWith('assets/audio/'));
+    expect(access.provider, 'CDN');
+    expect(access.url, startsWith('https://cdn.clonefanos.local/audio/'));
     expect(access.streamable, isTrue);
-    expect(access.offlineCapable, isTrue);
+    expect(access.offlineCapable, isFalse);
   });
 }

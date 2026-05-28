@@ -642,8 +642,8 @@ class _SearchTabState extends State<_SearchTab> {
       padding: const EdgeInsets.all(20),
       children: [
         _SectionHeader(
-          title: 'Search',
-          subtitle: 'T?m theo title, author, narrator, tag ho?c category',
+          title: 'Search audiobooks',
+          subtitle: 'Search by title, author, narrator, tag, or category',
         ),
         const SizedBox(height: 12),
         TextField(
@@ -652,7 +652,7 @@ class _SearchTabState extends State<_SearchTab> {
           onChanged: _onQueryChanged,
           onSubmitted: _onSubmit,
           decoration: InputDecoration(
-            hintText: 'Search audiobook',
+            hintText: 'Search audiobooks',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: _queryController.text.isEmpty
                 ? null
@@ -686,8 +686,8 @@ class _SearchTabState extends State<_SearchTab> {
         ),
         const SizedBox(height: 12),
         _SectionHeader(
-          title: 'Sort',
-          subtitle: 'Sắp xếp kết quả theo thứ tự phù hợp hơn',
+          title: 'Sort results',
+          subtitle: 'Sort search results by relevance, title, or duration',
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -717,12 +717,12 @@ class _SearchTabState extends State<_SearchTab> {
           runSpacing: 8,
           children: [
             ChoiceChip(
-              label: const Text('Desc'),
+              label: const Text('Descending'),
               selected: _selectedSortOrder == discoverySearchSortOrderDesc,
               onSelected: (_) => _changeSortOrder(discoverySearchSortOrderDesc),
             ),
             ChoiceChip(
-              label: const Text('Asc'),
+              label: const Text('Ascending'),
               selected: _selectedSortOrder == discoverySearchSortOrderAsc,
               onSelected: (_) => _changeSortOrder(discoverySearchSortOrderAsc),
             ),
@@ -739,7 +739,7 @@ class _SearchTabState extends State<_SearchTab> {
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return ChoiceChip(
-                    label: const Text('All topics'),
+                    label: const Text('All categories'),
                     selected: _selectedCategoryId == null,
                     onSelected: (_) => _changeCategory(null),
                   );
@@ -776,8 +776,8 @@ class _SearchTabState extends State<_SearchTab> {
         else if (showIdle)
           const _EmptyCard(
             icon: Icons.manage_search_outlined,
-            title: 'Nhập từ khóa để tìm audiobook',
-            description: 'Kết quả sẽ ưu tiên tiêu đề, tác giả, người đọc, tag và danh mục phù hợp.',
+            title: 'Type to search audiobooks',
+            description: 'Results prioritize title, author, narrator, tag, and category matches.',
           )
         else if (_items.isEmpty)
           const _EmptyCard(

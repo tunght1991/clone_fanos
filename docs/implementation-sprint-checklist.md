@@ -246,12 +246,94 @@ Mục tiêu: đưa hệ thống tới trạng thái release-ready bằng cách k
 | Contract drift bị chặn | Shared/Backend | DONE | DTO và migration assertions ngăn lệch schema/runtime |
 | Root validation đủ rộng | Platform/QA | DONE | `pnpm check` và targeted suites chặn regression trước merge |
 
+## Sprint 12: Backend/Platform Risk Closure
+
+Mục tiêu: khóa các rủi ro backend/platform còn lại quanh subscription, search/reindex, asset access, và shared contract alignment, đồng thời ghi rõ trạng thái đóng/mở trong docs và checklist.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Khóa subscription và billing scope theo backend-owned flow | Backend/Product | DONE | Idempotent verify, webhook signature guard, và entitlement resolution đã được giữ trong backend |
+| Khóa search/reindex consistency và rollback determinism | Backend/Platform | DONE | Bulk reindex, single-document reindex, và alias rollback đã có coverage |
+| Khóa asset access chỉ resolve từ backend | Backend/Mobile | DONE | Premium asset access chỉ được resolve qua backend boundary, không expose raw storage URL |
+| Đồng bộ shared contracts với backend validation | Shared/Backend | DONE | Contract helpers và request parsing vẫn cùng một source of truth |
+| Ghi nhận trạng thái closure trong docs và checklist | Platform/QA | DONE | Sprint 12 spec, implementation plan, và checklist đã được cập nhật |
+
+### Checkpoint Sprint 12
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Subscription entitlement ổn định | Backend | DONE | `GET /subscriptions/me` và verify/webhook flow phản ánh entitlement đúng contract |
+| Search/reindex không drift | Backend/Platform | DONE | Alias swap, rollback, và deterministic ordering vẫn được giữ ổn định |
+| Asset access contract đồng nhất | Backend/Mobile | DONE | Asset access chỉ được resolve ở backend boundary |
+| Shared contract alignment được giữ | Shared/Backend | DONE | DTO và invariant helpers vẫn khớp với backend validation |
+| Sprint closure được ghi rõ | Platform/QA | DONE | Risk register và sprint docs đã phản ánh trạng thái đóng |
+
+## Sprint 13: Mobile Scope Freeze and Narrator Rule Closure
+
+Mục tiêu: khóa ranh giới offline playback và narrator rules theo contract hiện tại, đồng bộ shared/backend/admin/mobile, và ghi nhận rõ trạng thái closure trong docs/checklist.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Khóa offline playback theo contract MVP hiện tại | Backend/Shared | DONE | Offline capability được giữ ở boundary hiện tại và không thể bật từ client payload |
+| Enforce narrator role rules trong backend và shared helper | Backend/Shared | DONE | `role_index` và primary narrator invariant dùng chung một source of truth |
+| Đồng bộ mobile playback với boundary offline | Mobile | DONE | Player không tự suy diễn offline-ready ngoài contract backend |
+| Giới hạn admin narrator editing theo model đã validate | Admin | DONE | Editor chỉ chấp nhận slot hợp lệ và chặn narrator combination sai |
+| Ghi nhận trạng thái closure trong docs và checklist | Platform/QA | DONE | Sprint 13 spec, implementation plan và checklist đã được cập nhật |
+
+### Checkpoint Sprint 13
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Offline playback boundary đã được khóa | Backend/Mobile | DONE | Mobile và backend cùng dùng contract hiện tại cho asset access |
+| Narrator rules đồng nhất | Backend/Admin/Mobile | DONE | Backend validation, shared helper, và admin editor cùng enforce 1..3 |
+| Docs và checklist phản ánh trạng thái closure | Platform/QA | DONE | Sprint 13 đã được ghi nhận rõ trong docs |
+
+## Sprint 14: Offline UX Signals and Narrator Copy Consistency
+
+Mục tiêu: làm rõ tín hiệu UI cho offline playback và đồng bộ narrator copy/label giữa mobile và admin mà không mở rộng capability hiện có.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Chuẩn hóa copy offline trên mobile | Mobile | DONE | Player hiển thị wording rõ ràng cho streaming-only vs available-offline từ contract hiện có |
+| Đồng bộ narrator label và validation copy trên admin | Admin | DONE | Slot naming và error copy của narrator đã khớp với model 1..3 |
+| Ghi nhận trạng thái closure trong docs và checklist | Platform/QA | DONE | Sprint 14 spec, implementation plan, và checklist đã được cập nhật |
+
+### Checkpoint Sprint 14
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Offline messaging được làm rõ | Mobile | DONE | UI chỉ mô tả state đã có, không mở rộng capability |
+| Narrator copy đồng nhất | Admin | DONE | Label, slot naming, và validation copy đã thống nhất |
+| Docs và checklist phản ánh trạng thái closure | Platform/QA | DONE | Sprint 14 đã được ghi nhận rõ trong docs |
+
+## Sprint 15: Search and Filter Terminology Consistency
+
+Mục tiêu: chuẩn hóa terminology search/filter trên mobile discovery và admin management surfaces mà không thay đổi behavior, routing, analytics, hay contract.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Chuẩn hóa search/filter copy trên mobile discovery | Mobile | DONE | Home shell search tab dùng wording nhất quán cho search header, hints, sort labels và empty state |
+| Chuẩn hóa search/filter copy trên admin dashboard | Admin | DONE | Content dashboard, taxonomy, và audit dùng cùng family từ cho search/filter actions |
+| Ghi nhận trạng thái closure trong docs và checklist | Platform/QA | DONE | Sprint 15 spec, implementation plan, và checklist đã được cập nhật |
+
+### Checkpoint Sprint 15
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Mobile search copy được chuẩn hóa | Mobile | DONE | Search tab giữ nguyên behavior, chỉ đổi wording |
+| Admin search/filter terminology đồng nhất | Admin | DONE | Dashboard, taxonomy, audit đã cùng vocabulary |
+| Docs và checklist phản ánh trạng thái closure | Platform/QA | DONE | Sprint 15 đã được ghi nhận rõ trong docs |
+
 ## Rủi ro theo dõi xuyên suốt
 
 | Rủi ro | Owner | Status | Ghi chú |
 |---|---|---|---|
-| Billing/subscription có xu hướng phình scope | Backend/Product | TODO |  |
-| Elasticsearch mapping/reindex cần kiểm soát chặt | Backend/Platform | TODO |  |
-| Offline playback dễ vượt MVP nếu không khóa phạm vi | Mobile/Product | TODO |  |
-| Narrator 3 giọng cần enforce ở backend và UI | Backend/Admin/Mobile | TODO |  |
-| Asset access động phải đồng nhất giữa backend và mobile | Backend/Mobile | TODO |  |
+| Billing/subscription có xu hướng phình scope | Backend/Product | DONE | Đã khóa lại trong Sprint 12 với backend-owned verification flow |
+| Elasticsearch mapping/reindex cần kiểm soát chặt | Backend/Platform | DONE | Đã khóa deterministic reindex/rollback coverage trong Sprint 12 |
+| Offline playback dễ vượt MVP nếu không khóa phạm vi | Mobile/Product | DONE | Đã khóa boundary trong Sprint 13 và giữ ở contract backend-owned |
+| Narrator 3 giọng cần enforce ở backend và UI | Backend/Admin/Mobile | DONE | Đã khóa role_index 1..3 và editor validation trong Sprint 13 |
+| Offline UX messaging có thể drift giữa mobile và admin | Mobile/Admin | DONE | Đã chuẩn hóa wording theo contract hiện có trong Sprint 14 |
+| Narrator terminology/copy có thể lệch giữa các màn admin | Admin | DONE | Đã đồng bộ slot naming, label, và validation copy trong Sprint 14 |
+| Search/filter terminology có thể drift giữa mobile và admin | Mobile/Admin | DONE | Đã chuẩn hóa search/filter copy trên mobile discovery và admin management surfaces trong Sprint 15 |
+| Docs và checklist có thể lệch trạng thái thực thi | Platform/QA | DONE | Đã cập nhật Sprint 15 spec, plan, và master checklist |
+| Asset access động phải đồng nhất giữa backend và mobile | Backend/Mobile | DONE | Đã giữ backend-resolved asset access contract trong Sprint 12 |

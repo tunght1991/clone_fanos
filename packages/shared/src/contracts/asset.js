@@ -1,3 +1,4 @@
 export const ASSET_KINDS = ['AUDIO', 'COVER_IMAGE', 'AVATAR', 'TRANSCRIPT'];
 export const ASSET_PROVIDERS = ['CDN', 'S3', 'LOCALFILE'];
 export const ASSET_PURPOSES = ['STREAM', 'DOWNLOAD', 'THUMBNAIL', 'PREVIEW'];
+export const ASSET_ACCESS_OFFLINE_CAPABLE = false;

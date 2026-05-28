@@ -119,7 +119,7 @@ export function renderAuditTrailView({ state, entityOptions = [] }) {
         </div>
 
         <form class="panel audit-filter" data-audit-filter-form>
-          <div class="panel-kicker">Filter</div>
+          <div class="panel-kicker">Filters</div>
           <label class="editor-label">
             <span>Entity type</span>
             <select name="entityType">
@@ -138,12 +138,12 @@ export function renderAuditTrailView({ state, entityOptions = [] }) {
           </label>
           <label class="editor-label">
             <span>Search</span>
-            <input name="query" type="search" value="${escapeHtml(state.filters.query ?? '')}" placeholder="Search entity, actor or action" />
+            <input name="query" type="search" value="${escapeHtml(state.filters.query ?? '')}" placeholder="Search by entity, actor, or action" />
           </label>
           <div class="editor-actions">
-            ${renderButton({ label: 'Refresh', variant: 'primary', buttonType: 'submit' })}
+            ${renderButton({ label: 'Apply filters', variant: 'primary', buttonType: 'submit' })}
             ${renderButton({
-              label: 'Reset',
+              label: 'Clear filters',
               variant: 'secondary',
               attrs: { 'data-audit-action': 'reset' },
             })}

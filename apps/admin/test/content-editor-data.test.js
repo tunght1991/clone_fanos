@@ -6,6 +6,7 @@ import {
   createAudiobookEditorState,
   createBlankAudiobookEditorDraft,
   createLocalAudiobookId,
+  formatNarratorSlotLabel,
   getEditorPublishWarning,
   serializeAudiobookEditorPayload,
   removeAudiobookEditorChapter,
@@ -55,12 +56,45 @@ test('buildAudiobookEditorDraftFromRecord hydrates published metadata and taxono
   assert.deepEqual(draft.tagIds, ['tag-habit']);
 });
 
+test('buildAudiobookEditorDraftFromRecord ignores narrator slots outside the validated range', () => {
+  const draft = buildAudiobookEditorDraftFromRecord({
+    id: 'ab-002',
+    title: 'Narrator bounds',
+    authorId: 'author-001',
+    narrators: [
+      { id: 'narrator-001', name: 'Lan Anh', roleIndex: 1, isPrimary: true },
+      { id: 'narrator-010', name: 'Invalid', roleIndex: 4, isPrimary: false },
+    ],
+  });
+
+  assert.equal(draft.narrators.length, 3);
+  assert.equal(draft.narrators[0].narratorId, 'narrator-001');
+  assert.equal(draft.narrators[1].narratorId, '');
+  assert.equal(draft.narrators[2].narratorId, '');
+});
+
 test('validateAudiobookEditorState rejects missing title and author', () => {
   const result = validateAudiobookEditorState(createAudiobookEditorState());
 
   assert.equal(result.valid, false);
   assert.equal(Boolean(result.errors.title), true);
   assert.equal(Boolean(result.errors.authorId), true);
+});
+
+test('validateAudiobookEditorState rejects narrator slots outside the validated range', () => {
+  const state = createAudiobookEditorState();
+  state.draft.narrators[0].roleIndex = 4;
+
+  const result = validateAudiobookEditorState(state);
+
+  assert.equal(result.valid, false);
+  assert.equal(result.errors.narrators, 'Narrator phải giữ đúng 3 slot 1..3 hợp lệ.');
+});
+
+test('formatNarratorSlotLabel returns stable slot labels', () => {
+  assert.equal(formatNarratorSlotLabel(1), 'Narrator 1');
+  assert.equal(formatNarratorSlotLabel(2), 'Narrator 2');
+  assert.equal(formatNarratorSlotLabel(3), 'Narrator 3');
 });
 
 test('serializeAudiobookEditorPayload emits contract fields only', () => {

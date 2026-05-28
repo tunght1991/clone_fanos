@@ -63,8 +63,10 @@ void main() {
     expect(find.text('Player'), findsOneWidget);
     expect(find.text('Play'), findsOneWidget);
     expect(find.text('Transcript'), findsOneWidget);
-    expect(find.text('In this chapter we talk about service boundaries.'),
+    expect(find.text('In this chapter we talk about service boundaries.'), 
         findsOneWidget);
+    expect(find.text('Streaming only'), findsOneWidget);
+    expect(find.text('offline-ready'), findsNothing);
     expect(find.text('Previous chapter'), findsOneWidget);
     expect(find.text('Next chapter'), findsOneWidget);
 
@@ -237,7 +239,7 @@ void main() {
 
     expect(find.text('Play'), findsOneWidget);
     expect(find.text('Premium locked'), findsNothing);
-    expect(find.text('LOCALFILE'), findsOneWidget);
+    expect(find.text('CDN'), findsOneWidget);
   });
 }
 

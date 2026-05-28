@@ -13,6 +13,8 @@ test('renderTaxonomyManagerView shows tabbed list and draft form', () => {
   assert.match(html, /Taxonomy/i);
   assert.match(html, /Authors/i);
   assert.match(html, /Search/i);
+  assert.match(html, /Apply filters/i);
+  assert.match(html, /Clear filters/i);
   assert.match(html, /Save taxonomy/i);
   assert.match(html, /Delete/i);
 });

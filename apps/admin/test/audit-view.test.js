@@ -35,7 +35,8 @@ test('renderAuditTrailView shows timeline and audit table', () => {
   assert.match(html, /Audit trail/i);
   assert.match(html, /Status timeline/i);
   assert.match(html, /Demo audiobook/i);
-  assert.match(html, /Refresh/i);
+  assert.match(html, /Apply filters/i);
+  assert.match(html, /Clear filters/i);
 });
 
 test('renderAuditTrailView shows loading and error states', () => {

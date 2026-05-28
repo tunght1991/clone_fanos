@@ -87,6 +87,55 @@ void main() {
     ]));
   });
 
+  testWidgets('Home shell uses consistent search terminology', (tester) async {
+    final appState = AppState(
+      authRepository: MockAuthRepository(),
+      contentRepository: MockDiscoveryRepository(),
+      playerRepository: MockPlayerRepository(),
+      engagementRepository: MockEngagementRepository(),
+      subscriptionRepository: MockSubscriptionRepository(),
+      onboardingStore: InMemoryOnboardingStore(),
+      sessionStore: InMemorySessionStore(),
+    );
+
+    await appState.bootstrap();
+    await appState.completeOnboarding();
+    await appState.login(
+      email: 'demo@clonefanos.local',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      AppScope(
+        appState: appState,
+        child: MaterialApp(
+          home: HomeShell(appState: appState),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.search_outlined));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Search audiobooks'), findsWidgets);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).decoration?.hintText,
+      'Search audiobooks',
+    );
+    expect(find.text('Sort results'), findsOneWidget);
+    expect(find.text('All categories'), findsOneWidget);
+    expect(find.text('Descending'), findsOneWidget);
+    expect(find.text('Ascending'), findsOneWidget);
+    await tester.drag(find.byType(ListView).last, const Offset(0, -700));
+    await tester.pumpAndSettle();
+    expect(find.text('Type to search audiobooks'), findsOneWidget);
+    expect(
+      find.text('Results prioritize title, author, narrator, tag, and category matches.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Home shell supports search sort by title and order', (tester) async {
     final analyticsRepository = MockAnalyticsRepository();
     final appState = AppState(
@@ -124,14 +173,14 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
 
-    expect(find.text('Sort'), findsOneWidget);
+    expect(find.text('Sort results'), findsOneWidget);
 
     await tester.tap(find.text('Title'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Desc'));
+    await tester.tap(find.text('Descending'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Asc'));
+    await tester.tap(find.text('Ascending'));
     await tester.pumpAndSettle();
 
     final eventNames = analyticsRepository.recordedEvents.map((record) => record.event.eventName).toList();

@@ -12,6 +12,10 @@ import {
 export const MAX_EDITOR_NARRATORS = 3;
 export const DEFAULT_EDITOR_LANGUAGE_CODE = 'vi';
 
+export function formatNarratorSlotLabel(roleIndex) {
+  return `Narrator ${roleIndex}`;
+}
+
 export function createBlankAudiobookChapterDraft(orderIndex = 1) {
   return {
     title: '',
@@ -99,6 +103,10 @@ export const DEMO_TAG_OPTIONS = [
 
 function normalizeString(value) {
   return String(value ?? '').trim().toLowerCase();
+}
+
+function isValidNarratorRoleIndex(roleIndex) {
+  return Number.isInteger(Number(roleIndex)) && Number(roleIndex) >= 1 && Number(roleIndex) <= MAX_EDITOR_NARRATORS;
 }
 
 function slugifyFileName(fileName) {
@@ -418,7 +426,11 @@ export function validateAudiobookEditorState(state) {
   const title = normalizeString(state.draft.title);
   const authorId = normalizeString(state.draft.authorId);
   const durationSec = Number(state.draft.durationSec);
-  const narratorCount = state.draft.narrators.filter((slot) => normalizeString(slot.narratorId)).length;
+  const narratorSlots = Array.isArray(state.draft.narrators) ? state.draft.narrators : [];
+  const narratorCount = narratorSlots.filter((slot) => normalizeString(slot.narratorId)).length;
+  const narratorSlotsValid =
+    narratorSlots.length === MAX_EDITOR_NARRATORS &&
+    narratorSlots.every((slot, index) => isValidNarratorRoleIndex(slot?.roleIndex) && Number(slot.roleIndex) === index + 1);
   const chapters = Array.isArray(state.draft.chapters) ? state.draft.chapters : [];
 
   if (!title) {
@@ -433,7 +445,9 @@ export function validateAudiobookEditorState(state) {
     errors.durationSec = 'Duration phải là số hợp lệ.';
   }
 
-  if (narratorCount > MAX_EDITOR_NARRATORS) {
+  if (!narratorSlotsValid) {
+    errors.narrators = `Narrator phải giữ đúng ${MAX_EDITOR_NARRATORS} slot 1..${MAX_EDITOR_NARRATORS} hợp lệ.`;
+  } else if (narratorCount > MAX_EDITOR_NARRATORS) {
     errors.narrators = `Tối đa ${MAX_EDITOR_NARRATORS} narrator.`;
   }
 

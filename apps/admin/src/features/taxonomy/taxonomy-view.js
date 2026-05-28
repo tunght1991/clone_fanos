@@ -132,9 +132,9 @@ export function renderTaxonomyManagerView({ state }) {
           />
         </label>
         <input type="hidden" name="tab" value="${escapeHtml(state.type)}" />
-        ${renderButton({ label: 'Filter', variant: 'primary', buttonType: 'submit' })}
+        ${renderButton({ label: 'Apply filters', variant: 'primary', buttonType: 'submit' })}
         ${renderButton({
-          label: 'Clear',
+          label: 'Clear filters',
           variant: 'secondary',
           attrs: { 'data-taxonomy-action': 'clear-search' },
         })}

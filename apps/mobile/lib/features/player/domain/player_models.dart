@@ -31,3 +31,11 @@ class AudioAssetAccess {
     required this.offlineCapable,
   });
 }
+
+String describeAudioAssetAccess(AudioAssetAccess access) {
+  if (!access.streamable) {
+    return 'Download only';
+  }
+
+  return access.offlineCapable ? 'Available offline' : 'Streaming only';
+}

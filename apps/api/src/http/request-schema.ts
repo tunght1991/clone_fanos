@@ -21,6 +21,7 @@ import type {
   SubscriptionWebhookEventDto,
 } from '../modules/subscription/index.js';
 import {
+  ASSET_ACCESS_OFFLINE_CAPABLE,
   ASSET_KINDS,
   ASSET_PURPOSES,
 } from '../../../../packages/shared/src/contracts/asset.js';
@@ -267,8 +268,7 @@ export function parseAssetAccessRequest(body: unknown): GetAssetAccessRequest {
     assetKey: readRequiredText(payload.assetKey, 'assetKey', 1, 512),
     kind: readAssetKind(payload.kind, 'kind'),
     purpose: readAssetPurpose(payload.purpose, 'purpose'),
-    // Sprint 10 keeps offline playback out of scope, so the API boundary normalizes this to false.
-    offlineCapable: false,
+    offlineCapable: ASSET_ACCESS_OFFLINE_CAPABLE,
   };
 }
 
