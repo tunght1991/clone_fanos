@@ -297,6 +297,71 @@ test('SubscriptionService verifies a pending subscription using checkout session
   assert.equal(result?.subscription?.flowState, 'UNLOCKED');
 });
 
+test('SubscriptionService does not activate live entitlement from client-supplied receipt proof', async () => {
+  const deps = createDependencies();
+  deps.policy = {
+    environment: 'production',
+    provider: 'IAP',
+    billingMode: 'LIVE',
+    allowSandbox: false,
+  };
+  deps.repoState.subscriptions.set('sub-1', {
+    id: 'sub-1',
+    userId: 'user-1',
+    planId: 'plan-1',
+    status: 'pending',
+    startAt: new Date('2026-05-11T00:00:00.000Z'),
+    endAt: new Date('2026-06-11T00:00:00.000Z'),
+    provider: 'iap',
+    providerSubscriptionId: null,
+    billingProvider: 'IAP',
+    billingStatus: 'initiated',
+    billingReference: null,
+    checkoutSessionId: 'checkout-1',
+    lastBillingAt: null,
+    nextBillingAt: null,
+    createdAt: new Date('2026-05-11T00:00:00.000Z'),
+    updatedAt: new Date('2026-05-11T00:00:00.000Z'),
+  });
+  deps.repoState.details.set('user-1-detail', {
+    id: 'user-1-detail',
+    status: 'pending',
+    planId: 'plan-1',
+    planName: 'Premium Monthly',
+    planPrice: '99000',
+    planDurationDays: 30,
+    planStatus: 'ACTIVE',
+    billingProvider: 'IAP',
+    billingStatus: 'INITIATED',
+    billingReference: null,
+    checkoutSessionId: 'checkout-1',
+    lastBillingAt: null,
+    nextBillingAt: null,
+    canAccessPremium: false,
+    expiresAt: new Date('2026-06-11T00:00:00.000Z'),
+    startAt: new Date('2026-05-11T00:00:00.000Z'),
+    endAt: new Date('2026-06-11T00:00:00.000Z'),
+    createdAt: new Date('2026-05-11T00:00:00.000Z'),
+    updatedAt: new Date('2026-05-11T00:00:00.000Z'),
+  });
+  const service = new SubscriptionService(deps);
+
+  const result = await service.verifySubscription('user-1', {
+    checkoutSessionId: 'checkout-1',
+    receiptToken: 'client-forged-receipt',
+    provider: 'IAP',
+    platform: 'ios',
+  });
+
+  assert.ok(result);
+  assert.equal(result?.status, 'PENDING');
+  assert.equal(result?.entitlement?.status, 'PENDING');
+  assert.equal(result?.entitlement?.canAccessPremium, false);
+  assert.equal(deps.repoState.subscriptions.get('sub-1')?.status, 'pending');
+  assert.equal(deps.repoState.subscriptions.get('sub-1')?.billingStatus, 'initiated');
+  assert.equal(deps.repoState.subscriptions.get('sub-1')?.billingReference, null);
+});
+
 test('SubscriptionService does not activate entitlement from checkout session alone', async () => {
   const deps = createDependencies();
   deps.repoState.subscriptions.set('sub-1', {

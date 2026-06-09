@@ -14,7 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Subscription screen follows paywall -> select plan -> payment -> verify -> unlock', (tester) async {
+  testWidgets(
+      'Subscription screen follows paywall -> select plan -> payment -> verify -> unlock',
+      (tester) async {
     final analyticsRepository = MockAnalyticsRepository();
     final appState = AppState(
       authRepository: MockAuthRepository(),
@@ -53,13 +55,16 @@ void main() {
 
     expect(find.text('Select Plan'), findsWidgets);
 
-    await tester.tap(find.byKey(const ValueKey('subscription-payment-button')), warnIfMissed: false);
+    await tester.tap(find.byKey(const ValueKey('subscription-payment-button')),
+        warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(find.text('Premium access enabled'), findsOneWidget);
     expect(find.text('Unlocked'), findsWidgets);
 
-    final eventNames = analyticsRepository.recordedEvents.map((record) => record.event.eventName).toList();
+    final eventNames = analyticsRepository.recordedEvents
+        .map((record) => record.event.eventName)
+        .toList();
     expect(
       eventNames,
       containsAllInOrder([
@@ -74,7 +79,9 @@ void main() {
     );
   });
 
-  testWidgets('Subscription screen shows and dismisses subscription refresh banner', (tester) async {
+  testWidgets(
+      'Subscription screen shows and dismisses subscription refresh banner',
+      (tester) async {
     final appState = AppState(
       authRepository: MockAuthRepository(),
       contentRepository: MockDiscoveryRepository(),
@@ -112,6 +119,50 @@ void main() {
     expect(find.text('Subscription info needs a refresh.'), findsNothing);
     expect(appState.subscriptionRefreshError, isNull);
   });
+
+  testWidgets(
+      'Subscription screen failure analytics uses normalized error category',
+      (tester) async {
+    final analyticsRepository = MockAnalyticsRepository();
+    final appState = AppState(
+      authRepository: MockAuthRepository(),
+      contentRepository: MockDiscoveryRepository(),
+      playerRepository: MockPlayerRepository(),
+      engagementRepository: MockEngagementRepository(),
+      subscriptionRepository: _CheckoutFailingSubscriptionRepository(),
+      analyticsRepository: analyticsRepository,
+      onboardingStore: InMemoryOnboardingStore(),
+      sessionStore: InMemorySessionStore(),
+    );
+
+    await appState.bootstrap();
+    await appState.completeOnboarding();
+    await appState.login(
+      email: 'demo@clonefanos.local',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      AppScope(
+        appState: appState,
+        child: MaterialApp(
+          home: SubscriptionScreen(appState: appState),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('subscription-payment-button')));
+    await tester.pumpAndSettle();
+
+    final failed = analyticsRepository.recordedEvents
+        .where((record) =>
+            record.event.eventName == 'subscription_checkout_failed')
+        .toList();
+    expect(failed, hasLength(1));
+    expect(failed.single.event.payload['errorCategory'], 'network');
+    expect(failed.single.event.payload.containsKey('error'), isFalse);
+  });
 }
 
 class _FailingSubscriptionRepository extends MockSubscriptionRepository {
@@ -121,5 +172,17 @@ class _FailingSubscriptionRepository extends MockSubscriptionRepository {
     required String? accessToken,
   }) async {
     throw StateError('subscription refresh failed');
+  }
+}
+
+class _CheckoutFailingSubscriptionRepository
+    extends MockSubscriptionRepository {
+  @override
+  Future<SubscriptionCheckoutResult> checkout({
+    required SubscriptionCheckoutRequest request,
+    required String? userId,
+    required String? accessToken,
+  }) async {
+    throw StateError('network timeout');
   }
 }

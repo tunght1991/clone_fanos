@@ -324,6 +324,71 @@ Mục tiêu: chuẩn hóa terminology search/filter trên mobile discovery và a
 | Admin search/filter terminology đồng nhất | Admin | DONE | Dashboard, taxonomy, audit đã cùng vocabulary |
 | Docs và checklist phản ánh trạng thái closure | Platform/QA | DONE | Sprint 15 đã được ghi nhận rõ trong docs |
 
+## Sprint 16: Mobile Release Blocker Resolution
+
+Mục tiêu: xử lý 3 blocker mobile trước release gồm bootstrap auth phase safety, search stale-response race, và analytics error payload hygiene.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Bootstrap không downgrade về onboarding khi subscription refresh lỗi transient | Mobile | DONE | `AppState.bootstrap()` giữ phase authenticated khi session restore thành công; fallback signed-out phase bám onboarding state |
+| Chặn stale search response overwrite trên discovery search | Mobile | DONE | `_SearchTabState` dùng request sequence guard để chỉ apply request mới nhất |
+| Chuẩn hóa analytics failure payload, không gửi raw error string | Mobile/Analytics | DONE | Auth/subscription failure events chuyển sang `errorCategory`, không còn gửi `error.toString()`/raw message |
+| Hoàn tất sprint closure docs + gate tổng | Platform/QA | DONE | `pnpm.cmd check` đã pass và trạng thái closure đã được chốt |
+
+### Checkpoint Sprint 16
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Bootstrap phase safety đã khóa | Mobile | DONE | Session hợp lệ không bị đẩy về onboarding vì lỗi refresh subscription |
+| Search race đã được chặn | Mobile | DONE | Regression test xác nhận stale result không overwrite latest result |
+| Analytics payload failure đã được harden | Mobile/Analytics | DONE | Failure payload chỉ còn category chuẩn hóa, không còn raw error text |
+| Sprint 16 closure docs/checklist hoàn tất | Platform/QA | DONE | `pnpm.cmd check` đã pass; Sprint 16 đã đóng |
+
+## Sprint 17: Release Candidate Operational Readiness
+
+Mục tiêu: biến MVP đã harden thành release candidate có gate, smoke evidence, runbook, rollback note và trạng thái docs nhất quán.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Tạo release-candidate checklist và smoke matrix | Platform/QA | DONE | `docs/release-candidate-checklist.md` bao phủ MVP smoke paths và exact commands |
+| Chuẩn hóa evidence log và ship/no-ship criteria | Platform/Product | DONE | Evidence template và Sprint 17 automated gate evidence đã được ghi nhận |
+| Tạo release runbook và rollback/handoff notes | Platform/QA | DONE | `docs/release-runbook.md` bao gồm local infra preflight, migration, rollback boundaries |
+| Đồng bộ README/infra docs với trạng thái release candidate | Platform | DONE | README và infra README đã trỏ tới release checklist/runbook |
+| Quyết định có cần `tools/release-smoke.ps1` hay không | Platform/QA | DONE | Không thêm helper trong Sprint 17; giữ documented manual commands |
+| Hoàn tất Sprint 17 gate và cập nhật checklist | Platform/QA | DONE | `pnpm.cmd check` đã pass và evidence được ghi nhận |
+
+### Checkpoint Sprint 17
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Release gate được định nghĩa | Platform/QA | DONE | `docs/release-candidate-checklist.md` tồn tại và có smoke matrix |
+| Runbook vận hành release candidate sẵn sàng | Platform/QA | DONE | `docs/release-runbook.md` tồn tại và có rollback/handoff notes |
+| Docs trạng thái không còn drift | Platform | DONE | README/checklist/infra docs trỏ đúng trạng thái release candidate |
+| Sprint 17 closure docs/checklist hoàn tất | Platform/QA | DONE | `pnpm.cmd check` đã pass; Sprint 17 đã đóng |
+
+## Sprint 18: Production Readiness Evidence Closure
+
+Mục tiêu: đóng các khoảng trống evidence còn lại trước quyết định production ship/no-ship: Docker/API preflight, manual MVP smoke, technical checklist, candidate hygiene và handoff rõ ràng.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Ghi nhận baseline candidate và blocker hiện tại | Platform/QA | DONE | Working tree chưa sạch; release tagging vẫn blocked |
+| Chạy lại automated gate và dependency audit | Platform/QA | DONE | `pnpm.cmd check` pass; `pnpm.cmd audit --audit-level moderate` pass |
+| Hoàn tất Docker/PostgreSQL preflight | Platform | DONE | Docker Desktop engine chạy; PostgreSQL container healthy trên `localhost:5434` |
+| Chạy migration, API startup và health preflight | Backend/Platform | DONE | `pnpm.cmd api:migrate` pass; API listen port `3000`; `/health` trả `200` |
+| Chạy manual MVP smoke matrix | QA/Product | DONE | Local seeded smoke `20260605231432` pass cho auth, browse/search/detail, playback, favorite/bookmark, subscription/asset gate và admin create/publish |
+| Cập nhật release/technical checklist với evidence Sprint 18 | Platform/QA | DONE | Sprint 18 evidence, blocker, residual risk và NO-GO decision đã được ghi |
+| Hoàn tất Sprint 18 closure và handoff | Platform/Product | DONE | Production ship NO-GO cho tới khi working tree sạch, release tagging/deploy được owner approve |
+
+### Checkpoint Sprint 18
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Automated baseline được xác nhận | Platform/QA | DONE | Gate và audit có result mới, đều pass |
+| Runtime preflight được xác nhận | Backend/Platform | DONE | Docker/PostgreSQL/migration/API health đều pass |
+| Manual smoke matrix hoàn tất | QA/Product | DONE | Local seeded smoke `20260605231432` đã pass toàn bộ S18-TC-08..13 |
+| Production readiness decision được ghi nhận | Platform/Product | DONE | `release-candidate-checklist` có Sprint 18 evidence và quyết định NO-GO vì candidate/tag/deploy chưa được chốt |
+
 ## Rủi ro theo dõi xuyên suốt
 
 | Rủi ro | Owner | Status | Ghi chú |

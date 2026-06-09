@@ -1,35 +1,37 @@
 # Clone Fonos
 
-Nền tảng audiobook và audio learning mobile-first, định vị theo hướng:
+Mobile-first audiobook and audio learning platform positioned as:
 
 > Spotify for Knowledge Workers
 
-## Cấu trúc repo
+## Repository Structure
 
-- `apps/mobile`: ứng dụng Flutter cho người dùng cuối
-- `apps/admin`: CMS web cho quản trị nội dung
-- `apps/api`: backend NestJS/TypeScript
-- `packages/shared`: DTO, schema và type dùng chung
-- `infra`: migration và hạ tầng cục bộ
-- `docs`: spec, architecture, API, data model, security, checklist
+- `apps/mobile`: Flutter app for end users
+- `apps/admin`: CMS web app for content admins
+- `apps/api`: NestJS/TypeScript backend
+- `packages/shared`: shared DTOs, schemas, and types
+- `infra`: migrations and local infrastructure
+- `docs`: specs, architecture, API, data model, security, and sprint checklists
 
-## Trạng thái hiện tại
+## Current Status
 
-- Sprint 1 đến Sprint 6 đã hoàn thành trong checklist hiện tại.
-- Sprint 7 đang triển khai lại subscription flow theo mô hình `Paywall -> Select Plan -> Payment -> Verify entitlement -> Unlock content`.
-- Trọng tâm hiện tại là chốt state machine, contract API, entitlement là nguồn sự thật, và các nhánh retry/pending/fail trên mobile.
-- Checklist chi tiết nằm ở [docs/implementation-sprint-checklist.md](docs/implementation-sprint-checklist.md).
+- Sprint 1 through Sprint 16 are closed in the current sprint checklist.
+- Sprint 17 is focused on MVP Phase 1 release candidate readiness.
+- Current focus: release gate, smoke evidence, runbook/rollback notes, and ship/no-ship criteria.
+- Detailed sprint status: [docs/implementation-sprint-checklist.md](docs/implementation-sprint-checklist.md).
+- Release candidate checklist: [docs/release-candidate-checklist.md](docs/release-candidate-checklist.md).
+- Release runbook: [docs/release-runbook.md](docs/release-runbook.md).
 
-## Mục tiêu MVP
+## MVP Goals
 
-- Đăng ký / đăng nhập
-- Browse, search, xem detail audiobook
-- Audio player, resume, bookmark, favorite
-- Subscription entitlement + billing
-- Admin CMS quản lý content
-- Search bằng Elasticsearch
+- Register and login
+- Browse, search, and view audiobook detail
+- Audio player, resume, bookmark, and favorite
+- Subscription entitlement and billing
+- Admin CMS content management
+- Elasticsearch-backed search
 
-## Lệnh gốc
+## Root Commands
 
 ```bash
 pnpm install
@@ -39,19 +41,25 @@ pnpm test
 pnpm typecheck
 ```
 
-## Start Nhanh
+## Release Gate
+
+```bash
+pnpm.cmd check
+```
+
+## Quick Start
 
 ### API
 
 ```bash
-pnpm --dir apps/api migrate
-pnpm --dir apps/api dev
+pnpm.cmd --dir apps/api migrate
+pnpm.cmd --dir apps/api dev
 ```
 
 ### Admin
 
 ```bash
-pnpm --dir apps/admin dev
+pnpm.cmd --dir apps/admin dev
 ```
 
 ### Mobile
@@ -62,23 +70,25 @@ D:\01_Work\clone_fanos\tools\flutter\bin\flutter.bat pub get
 D:\01_Work\clone_fanos\tools\flutter\bin\flutter.bat run
 ```
 
-## Local dev nhanh
+## Local Dev
 
-> Cần Docker Desktop service chạy để compose PostgreSQL local.
->
-> PostgreSQL local của `clone-fanos` dùng cổng `5433` trên máy host để tránh xung đột với instance khác.
+Docker Desktop must be running for local PostgreSQL.
+
+The local `clone-fanos` PostgreSQL container publishes to `localhost:5434` on
+the host to avoid conflicts with other local PostgreSQL instances.
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d
-pnpm api:migrate
-pnpm api:dev
+pnpm.cmd api:migrate
+pnpm.cmd api:dev
 ```
 
-> PowerShell shortcut: `infra/local-dev.ps1`
->
-> Nếu `pnpm` bị chặn bởi Execution Policy, dùng `cmd /c pnpm ...` hoặc chạy trực tiếp `pnpm.cmd`.
+PowerShell shortcut: `infra/local-dev.ps1`.
 
-## Tài liệu
+If `pnpm` is blocked by Execution Policy, use `cmd /c pnpm ...` or call
+`pnpm.cmd` directly.
+
+## Documentation
 
 - [Spec](docs/spec.md)
 - [Architecture](docs/architecture.md)
@@ -86,3 +96,5 @@ pnpm api:dev
 - [Data Model](docs/data-model.md)
 - [Security](docs/security.md)
 - [Sprint Checklist](docs/implementation-sprint-checklist.md)
+- [Release Candidate Checklist](docs/release-candidate-checklist.md)
+- [Release Runbook](docs/release-runbook.md)

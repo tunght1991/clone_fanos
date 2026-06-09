@@ -1,42 +1,58 @@
 # Infra
 
-Hạ tầng cục bộ và migration cho hệ thống.
+Local infrastructure and migration assets for the system.
 
-## Nội dung
+## Contents
 
 - Database migrations
-- Local infra assets
-- Scripts hỗ trợ khởi tạo môi trường
+- Local infrastructure assets
+- Helper scripts for local environment bootstrap
 
-## Trạng thái
+## Status
 
-- Có migration skeleton ban đầu
-- Có compose local cho PostgreSQL
+- Initial migration skeleton exists.
+- Local PostgreSQL compose setup exists.
+- Sprint 17 release-candidate preflight uses local PostgreSQL plus
+  `pnpm.cmd api:migrate`.
 
-## Local dev
+## Local Dev
 
-> Yêu cầu: Docker Desktop service phải đang chạy để `docker compose` có thể khởi động PostgreSQL.
->
-> Container PostgreSQL của `clone-fanos` publish ra `localhost:5433` trên máy host.
+Docker Desktop must be running before `docker compose` can start PostgreSQL.
 
-1. Khởi động PostgreSQL:
+The `clone-fanos` PostgreSQL container publishes to `localhost:5434` on the host.
+
+1. Start PostgreSQL:
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d
 ```
 
-> Nếu bạn dùng PowerShell, có thể chạy `infra/local-dev.ps1` để bật Postgres rồi migrate luôn.
->
-> Nếu `pnpm` bị chặn bởi Execution Policy, helper đã gọi `cmd /c pnpm api:migrate` để tránh lỗi này.
+PowerShell users can run `infra/local-dev.ps1` to start Postgres and run
+migrations.
 
-2. Chạy migration nền:
+If `pnpm` is blocked by Execution Policy, the helper uses
+`cmd /c pnpm api:migrate` to avoid that issue.
 
-```bash
-pnpm api:migrate
-```
-
-3. Chạy API local:
+2. Run migrations:
 
 ```bash
-pnpm api:dev
+pnpm.cmd api:migrate
 ```
+
+3. Start the API:
+
+```bash
+pnpm.cmd api:dev
+```
+
+## Release Candidate Preflight
+
+Sprint 17 release validation uses these local infrastructure steps:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d
+pnpm.cmd api:migrate
+pnpm.cmd api:dev
+```
+
+See [../docs/release-runbook.md](../docs/release-runbook.md).

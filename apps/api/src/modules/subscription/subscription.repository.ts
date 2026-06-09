@@ -160,7 +160,7 @@ export class PostgresSubscriptionRepository
         id,
         user_id AS "userId",
         plan_id AS "planId",
-        status,
+        upper(status::text) AS status,
         start_at AS "startAt",
         end_at AS "endAt",
         provider,
@@ -188,7 +188,7 @@ export class PostgresSubscriptionRepository
         name,
         price::text AS "price",
         duration_days AS "durationDays",
-        status,
+        upper(status::text) AS status,
         created_at AS "createdAt",
         updated_at AS "updatedAt"
        FROM subscription_plans
@@ -206,11 +206,11 @@ export class PostgresSubscriptionRepository
         name,
         price::text AS "price",
         duration_days AS "durationDays",
-        status,
+        upper(status::text) AS status,
         created_at AS "createdAt",
         updated_at AS "updatedAt"
        FROM subscription_plans
-       WHERE status = 'ACTIVE'
+       WHERE status = 'active'
        ORDER BY duration_days ASC, price ASC, id ASC`,
     );
 
@@ -498,13 +498,13 @@ export class PostgresSubscriptionRepository
       [
         input.subscriptionId,
         input.billingProvider,
-        input.billingStatus,
+        input.billingStatus.toLowerCase(),
         input.billingReference,
         input.providerSubscriptionId ?? null,
         input.checkoutSessionId ?? null,
         input.lastBillingAt ?? null,
         input.nextBillingAt ?? null,
-        input.status,
+        input.status.toLowerCase(),
       ],
     );
 

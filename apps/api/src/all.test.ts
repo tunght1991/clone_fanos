@@ -34,3 +34,4 @@ import './modules/search/search.repository.test.ts';
 import './http/search.http.parsers.test.ts';
 import './modules/subscription/subscription.controller.test.ts';
 import './modules/subscription/subscription.policy.test.ts';
+import './modules/subscription/subscription.repository.test.ts';

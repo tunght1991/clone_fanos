@@ -100,9 +100,12 @@ class _HomeShellState extends State<HomeShell> {
             selectedIndex: _index,
             onDestinationSelected: (value) => setState(() => _index = value),
             destinations: const [
-              NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-              NavigationDestination(icon: Icon(Icons.search_outlined), label: 'Search'),
-              NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+              NavigationDestination(
+                  icon: Icon(Icons.home_outlined), label: 'Home'),
+              NavigationDestination(
+                  icon: Icon(Icons.search_outlined), label: 'Search'),
+              NavigationDestination(
+                  icon: Icon(Icons.person_outline), label: 'Profile'),
             ],
           ),
         );
@@ -181,7 +184,8 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Future<BrowseFeed> _loadFeed() {
-    return widget.appState.contentRepository.getBrowseFeed(categoryId: _selectedCategoryId);
+    return widget.appState.contentRepository
+        .getBrowseFeed(categoryId: _selectedCategoryId);
   }
 
   void _selectCategory(ContentCategory? category) {
@@ -210,7 +214,8 @@ class _HomeTabState extends State<_HomeTab> {
           return _StateMessage(
             icon: Icons.error_outline,
             title: 'Kh?ng t?i ???c trang Home',
-            description: 'Kiá»ƒm tra láº¡i káº¿t ná»‘i hoáº·c thá»­ táº£i láº¡i.',
+            description:
+                'Kiá»ƒm tra láº¡i káº¿t ná»‘i hoáº·c thá»­ táº£i láº¡i.',
             actionLabel: 'Thá»­ láº¡i',
             onAction: () => setState(() {
               _feedFuture = _loadFeed();
@@ -226,20 +231,24 @@ class _HomeTabState extends State<_HomeTab> {
         final content = <Widget>[
           _HeroPanel(
             title: 'Học nhanh, nghe tiếp, quay lại trang chủ',
-            description: 'Browse audiobook, tìm nội dung phù hợp và tiếp tục nghe chỉ bằng với tap.',
+            description:
+                'Browse audiobook, tìm nội dung phù hợp và tiếp tục nghe chỉ bằng với tap.',
             onSearch: widget.onJumpToSearch,
           ),
           const SizedBox(height: 20),
           _SectionHeader(
             title: 'Continue listening',
-            subtitle: feed.continueListening == null ? 'Chưa có phiên nghe nào' : 'Resume từ vị trí gần nhất',
+            subtitle: feed.continueListening == null
+                ? 'Chưa có phiên nghe nào'
+                : 'Resume từ vị trí gần nhất',
           ),
           const SizedBox(height: 12),
           if (feed.continueListening == null)
             const _EmptyCard(
               icon: Icons.play_circle_outline,
               title: 'Chưa có nội dung đang nghe',
-              description: 'Khi bạn bắt đầu nghe, app sẽ đưa item này lên đầu để resume nhanh hơn.',
+              description:
+                  'Khi bạn bắt đầu nghe, app sẽ đưa item này lên đầu để resume nhanh hơn.',
             )
           else
             _ContinueListeningCard(
@@ -272,7 +281,8 @@ class _HomeTabState extends State<_HomeTab> {
             const _EmptyCard(
               icon: Icons.category_outlined,
               title: 'Chưa có danh mục',
-              description: 'Danh mục sẽ xuất hiện khi nội dung được gắn phân loại.',
+              description:
+                  'Danh mục sẽ xuất hiện khi nội dung được gắn phân loại.',
             )
           else
             SizedBox(
@@ -320,7 +330,8 @@ class _HomeTabState extends State<_HomeTab> {
                 child: AudiobookSummaryCard(
                   key: ValueKey('home-card-${item.id}'),
                   item: item,
-                  onTap: () => _openDetail(context, audiobookId: item.id, source: 'home'),
+                  onTap: () => _openDetail(context,
+                      audiobookId: item.id, source: 'home'),
                 ),
               ),
             ),
@@ -334,7 +345,8 @@ class _HomeTabState extends State<_HomeTab> {
             const _EmptyCard(
               icon: Icons.new_releases_outlined,
               title: 'Chưa có audiobook mới',
-              description: 'Danh sách mới sẽ hiển thị khi nội dung được xuất bản.',
+              description:
+                  'Danh sách mới sẽ hiển thị khi nội dung được xuất bản.',
             )
           else
             ...feed.newReleases.map(
@@ -343,7 +355,8 @@ class _HomeTabState extends State<_HomeTab> {
                 child: AudiobookSummaryCard(
                   key: ValueKey('home-card-${item.id}'),
                   item: item,
-                  onTap: () => _openDetail(context, audiobookId: item.id, source: 'home'),
+                  onTap: () => _openDetail(context,
+                      audiobookId: item.id, source: 'home'),
                 ),
               ),
             ),
@@ -400,6 +413,7 @@ class _SearchTabState extends State<_SearchTab> {
   bool _hasNext = false;
   int _page = 1;
   String? _errorMessage;
+  int _searchRequestSequence = 0;
 
   @override
   void initState() {
@@ -472,11 +486,13 @@ class _SearchTabState extends State<_SearchTab> {
   }) async {
     final query = value.trim();
     if (query.isEmpty) {
+      _searchRequestSequence += 1;
       setState(() {
         _items = const <AudiobookSummary>[];
         _page = 1;
         _hasNext = false;
         _errorMessage = null;
+        _isLoading = false;
       });
       return;
     }
@@ -488,6 +504,7 @@ class _SearchTabState extends State<_SearchTab> {
     };
 
     final page = resetResults ? 1 : _page + 1;
+    final requestId = ++_searchRequestSequence;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -510,6 +527,9 @@ class _SearchTabState extends State<_SearchTab> {
         ),
       );
       if (!mounted) {
+        return;
+      }
+      if (requestId != _searchRequestSequence) {
         return;
       }
 
@@ -553,6 +573,9 @@ class _SearchTabState extends State<_SearchTab> {
       if (!mounted) {
         return;
       }
+      if (requestId != _searchRequestSequence) {
+        return;
+      }
 
       setState(() {
         _isLoading = false;
@@ -563,6 +586,7 @@ class _SearchTabState extends State<_SearchTab> {
 
   void _clearQuery() {
     _debounce?.cancel();
+    _searchRequestSequence += 1;
     setState(() {
       _queryController.clear();
       _currentQuery = '';
@@ -635,7 +659,8 @@ class _SearchTabState extends State<_SearchTab> {
 
   @override
   Widget build(BuildContext context) {
-    final showRecent = _currentQuery.trim().isEmpty && _recentQueries.isNotEmpty;
+    final showRecent =
+        _currentQuery.trim().isEmpty && _recentQueries.isNotEmpty;
     final showIdle = _currentQuery.trim().isEmpty && _items.isEmpty;
 
     return ListView(
@@ -764,7 +789,10 @@ class _SearchTabState extends State<_SearchTab> {
             onAction: () => setState(() => _errorMessage = null),
           )
         else if (_isLoading && _items.isEmpty)
-          const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
+          const Center(
+              child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator()))
         else if (showRecent)
           _RecentSearches(
             queries: _recentQueries,
@@ -777,13 +805,15 @@ class _SearchTabState extends State<_SearchTab> {
           const _EmptyCard(
             icon: Icons.manage_search_outlined,
             title: 'Type to search audiobooks',
-            description: 'Results prioritize title, author, narrator, tag, and category matches.',
+            description:
+                'Results prioritize title, author, narrator, tag, and category matches.',
           )
         else if (_items.isEmpty)
           const _EmptyCard(
             icon: Icons.search_off_outlined,
             title: 'Không có kết quả',
-            description: 'Không tìm thấy kết quả phù hợp. Hãy thử điều chỉnh bộ lọc hoặc từ khóa.',
+            description:
+                'Không tìm thấy kết quả phù hợp. Hãy thử điều chỉnh bộ lọc hoặc từ khóa.',
           )
         else
           Column(
@@ -794,7 +824,8 @@ class _SearchTabState extends State<_SearchTab> {
                   child: AudiobookSummaryCard(
                     key: ValueKey('search-card-${item.id}'),
                     item: item,
-                    onTap: () => _openDetail(context, audiobookId: item.id, source: 'search'),
+                    onTap: () => _openDetail(context,
+                        audiobookId: item.id, source: 'search'),
                   ),
                 ),
               if (_hasNext)
@@ -873,7 +904,8 @@ class _ProfileTabState extends State<_ProfileTab> {
         const SizedBox(height: 12),
         Card(
           child: ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.account_circle_outlined)),
+            leading:
+                const CircleAvatar(child: Icon(Icons.account_circle_outlined)),
             title: Text(user?.displayName ?? 'Guest'),
             subtitle: Text(user?.email ?? 'Not signed in'),
           ),
@@ -914,6 +946,7 @@ class _ProfileTabState extends State<_ProfileTab> {
     );
   }
 }
+
 class AudiobookSummaryCard extends StatelessWidget {
   final AudiobookSummary item;
   final VoidCallback onTap;
@@ -986,7 +1019,8 @@ class AudiobookSummaryCard extends StatelessWidget {
                         runSpacing: 8,
                         children: [
                           _InfoPill(label: _formatDuration(item.durationSec)),
-                          for (final tag in item.tagNames.take(2)) _InfoPill(label: tag),
+                          for (final tag in item.tagNames.take(2))
+                            _InfoPill(label: tag),
                         ],
                       ),
                     ],
@@ -1051,7 +1085,8 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
   }
 
   Future<_AudiobookDetailViewData?> _loadDetailState() async {
-    final detail = await widget.appState.contentRepository.getAudiobookDetail(widget.audiobookId);
+    final detail = await widget.appState.contentRepository
+        .getAudiobookDetail(widget.audiobookId);
     if (detail == null) {
       return null;
     }
@@ -1111,7 +1146,9 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result.favorited ? 'Đã thêm vào yêu thích' : 'Đã bỏ khỏi yêu thích'),
+          content: Text(result.favorited
+              ? 'Đã thêm vào yêu thích'
+              : 'Đã bỏ khỏi yêu thích'),
         ),
       );
     } catch (error) {
@@ -1140,7 +1177,9 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
           initialChapterId: chapter?.id ??
               (resume
                   ? null
-                  : (playableChapters.isEmpty ? null : playableChapters.first.id)),
+                  : (playableChapters.isEmpty
+                      ? null
+                      : playableChapters.first.id)),
           initialPositionMs: null,
         ),
       ),
@@ -1172,7 +1211,8 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
 
   bool _isPremiumLocked(AudiobookDetail detail) {
     final subscription = widget.appState.currentSubscription;
-    return detail.premiumFlag && !(subscription?.entitlement.canAccessPremium ?? false);
+    return detail.premiumFlag &&
+        !(subscription?.entitlement.canAccessPremium ?? false);
   }
 
   @override
@@ -1188,7 +1228,9 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                 unawaited(_toggleFavorite(data));
               }
             },
-            icon: Icon(_currentData?.isFavorite == true ? Icons.favorite : Icons.favorite_border),
+            icon: Icon(_currentData?.isFavorite == true
+                ? Icons.favorite
+                : Icons.favorite_border),
           ),
         ],
       ),
@@ -1236,7 +1278,8 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     child: FilledButton(
                       onPressed: locked
                           ? _openSubscription
-                          : () => _openPlayerFromDetail(data.detail, resume: false),
+                          : () =>
+                              _openPlayerFromDetail(data.detail, resume: false),
                       child: Text(
                         locked ? 'Upgrade' : 'Start listening',
                       ),
@@ -1245,7 +1288,10 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                   final secondaryButton = SizedBox(
                     width: stacked ? double.infinity : null,
                     child: OutlinedButton(
-                      onPressed: locked ? null : () => _openPlayerFromDetail(data.detail, resume: true),
+                      onPressed: locked
+                          ? null
+                          : () =>
+                              _openPlayerFromDetail(data.detail, resume: true),
                       child: Text(
                         locked ? 'Premium locked' : 'Continue listening',
                       ),
@@ -1279,13 +1325,15 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                 const _EmptyCard(
                   icon: Icons.queue_music_outlined,
                   title: 'Chưa có chapter phát hành',
-                  description: 'Chỉ các chapter đã phát hành mới hiển thị trong danh sách.',
+                  description:
+                      'Chỉ các chapter đã phát hành mới hiển thị trong danh sách.',
                 )
               else
                 _ChapterList(
                   chapters: filterPlayableChapters(data.detail.chapters),
                   onTap: (chapter) {
-                    _openPlayerFromDetail(data.detail, resume: false, chapter: chapter);
+                    _openPlayerFromDetail(data.detail,
+                        resume: false, chapter: chapter);
                   },
                 ),
             ],
@@ -1295,6 +1343,7 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
     );
   }
 }
+
 class _DetailHeader extends StatelessWidget {
   final AudiobookDetail detail;
 
@@ -1338,7 +1387,8 @@ class _DetailHeader extends StatelessWidget {
               children: [
                 _InfoPill(label: _formatDuration(detail.durationSec)),
                 _InfoPill(label: detail.languageCode.toUpperCase()),
-                for (final category in detail.categoryNames) _InfoPill(label: category),
+                for (final category in detail.categoryNames)
+                  _InfoPill(label: category),
                 for (final tag in detail.tagNames) _InfoPill(label: tag),
               ],
             ),
@@ -1380,7 +1430,8 @@ class _ChapterList extends StatelessWidget {
                   child: Text('${chapter.orderIndex}'),
                 ),
                 title: Text(chapter.title),
-                subtitle: Text('${_formatDuration(chapter.durationSec)} ? ${chapter.status}'),
+                subtitle: Text(
+                    '${_formatDuration(chapter.durationSec)} ? ${chapter.status}'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => onTap(chapter),
               ),
@@ -1640,9 +1691,12 @@ class _StateMessage extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(title, style: theme.textTheme.titleLarge),
                   const SizedBox(height: 8),
-                  Text(description, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+                  Text(description,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium),
                   const SizedBox(height: 16),
-                  FilledButton.tonal(onPressed: onAction, child: Text(actionLabel)),
+                  FilledButton.tonal(
+                      onPressed: onAction, child: Text(actionLabel)),
                 ],
               ),
             ),
@@ -1854,6 +1908,7 @@ class _LockNotice extends StatelessWidget {
     );
   }
 }
+
 String _formatDuration(int seconds) {
   if (seconds <= 0) {
     return '0m';

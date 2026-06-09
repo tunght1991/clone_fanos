@@ -92,11 +92,11 @@ Tráº¡ng thÃ¡i máº·c Ä‘á»‹nh:
 
 | Rá»§i ro | Owner | Status | Ghi chÃº |
 |---|---|---|---|
-| Lá»‡ch contract giá»¯a admin vÃ  mobile | Shared/Backend | TODO | KhÃ³a DTO trÆ°á»›c khi lÃ m UI integration |
-| Asset URL bá»‹ lá»™ | Backend/Platform | TODO | Báº¯t buá»™c signed URL/asset policy |
-| Publish xong nhÆ°ng search chÆ°a cáº­p nháº­t | Backend/Platform | TODO | CÃ³ reindex/sync vÃ  retry |
-| Demo fallback cÃ²n sÃ³t | Admin/Mobile | TODO | Bá» fallback theo tá»«ng mÃ n hÃ¬nh |
-| Subscription verify phá»©c táº¡p | Backend/Mobile | TODO | TÃ¡ch checkout, verify, entitlement rÃµ rÃ ng |
+| Lá»‡ch contract giá»¯a admin vÃ  mobile | Shared/Backend | DONE | Shared DTOs, backend validation, admin/mobile behavior, and root validation now guard contract drift |
+| Asset URL bá»‹ lá»™ | Backend/Platform | DONE | Asset access is backend-resolved through `AssetAccess`; production rejects `LOCALFILE` and avoids raw storage URL as client contract |
+| Publish xong nhÆ°ng search chÆ°a cáº­p nháº­t | Backend/Platform | DONE | Content mutations enqueue audiobook reindex; bulk/single reindex and alias rollback have coverage |
+| Demo fallback cÃ²n sÃ³t | Admin/Mobile | DONE | Main flows use API-backed repositories; mock/demo data remains limited to explicit local/test fallback paths |
+| Subscription verify phá»©c táº¡p | Backend/Mobile | DONE | Checkout, verify, webhook, and entitlement are separated; premium unlock depends on entitlement success |
 
 ## Gá»£i Ã Lá»‹ch Giao Viá»‡c
 

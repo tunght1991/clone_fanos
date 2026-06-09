@@ -34,6 +34,28 @@ void main() {
   });
 
   test(
+      'AppState bootstrap keeps signed-out phase aligned with onboarding state when storage read fails',
+      () async {
+    final onboardingStore = InMemoryOnboardingStore();
+    await onboardingStore.markCompleted();
+    final appState = AppState(
+      authRepository: MockAuthRepository(),
+      contentRepository: MockDiscoveryRepository(),
+      playerRepository: MockPlayerRepository(),
+      engagementRepository: MockEngagementRepository(),
+      subscriptionRepository: MockSubscriptionRepository(),
+      onboardingStore: onboardingStore,
+      sessionStore: _ThrowingSessionStore(),
+    );
+
+    await appState.bootstrap();
+
+    expect(appState.phase, AppPhase.unauthenticated);
+    expect(appState.session, isNull);
+    expect(appState.errorMessage, isNotNull);
+  });
+
+  test(
       'AppState keeps authenticated session if subscription refresh fails during bootstrap',
       () async {
     final sessionStore = InMemorySessionStore();
@@ -42,8 +64,8 @@ void main() {
         tokenType: 'Bearer',
         accessToken: 'access-1',
         refreshToken: 'refresh-1',
-        expiresAt: DateTime.utc(2026, 6, 1, 0, 0, 0),
-        refreshExpiresAt: DateTime.utc(2026, 7, 1, 0, 0, 0),
+        expiresAt: DateTime.now().toUtc().add(const Duration(days: 30)),
+        refreshExpiresAt: DateTime.now().toUtc().add(const Duration(days: 60)),
         user: const AuthUser(
           id: 'user-demo',
           email: 'demo@clonefanos.local',
@@ -76,7 +98,8 @@ void main() {
         contains('subscription refresh failed'));
   });
 
-  test('AppState clears stored session when auth validation fails during bootstrap',
+  test(
+      'AppState clears stored session when auth validation fails during bootstrap',
       () async {
     final sessionStore = InMemorySessionStore();
     await sessionStore.write(
@@ -84,8 +107,8 @@ void main() {
         tokenType: 'Bearer',
         accessToken: 'access-invalid',
         refreshToken: 'refresh-invalid',
-        expiresAt: DateTime.utc(2026, 6, 1, 0, 0, 0),
-        refreshExpiresAt: DateTime.utc(2026, 7, 1, 0, 0, 0),
+        expiresAt: DateTime.now().toUtc().add(const Duration(days: 30)),
+        refreshExpiresAt: DateTime.now().toUtc().add(const Duration(days: 60)),
         user: const AuthUser(
           id: 'user-demo',
           email: 'demo@clonefanos.local',
@@ -124,7 +147,7 @@ void main() {
         accessToken: 'access-expired',
         refreshToken: 'refresh-1',
         expiresAt: DateTime.utc(2024, 6, 1, 0, 0, 0),
-        refreshExpiresAt: DateTime.utc(2026, 7, 1, 0, 0, 0),
+        refreshExpiresAt: DateTime.now().toUtc().add(const Duration(days: 60)),
         user: const AuthUser(
           id: 'user-demo',
           email: 'demo@clonefanos.local',
@@ -162,7 +185,7 @@ void main() {
         accessToken: 'access-expired',
         refreshToken: 'refresh-1',
         expiresAt: DateTime.utc(2024, 6, 1, 0, 0, 0),
-        refreshExpiresAt: DateTime.utc(2026, 7, 1, 0, 0, 0),
+        refreshExpiresAt: DateTime.now().toUtc().add(const Duration(days: 60)),
         user: const AuthUser(
           id: 'user-demo',
           email: 'demo@clonefanos.local',
@@ -377,8 +400,8 @@ class _RefreshingAuthRepository extends MockAuthRepository {
       tokenType: 'Bearer',
       accessToken: 'access-refreshed',
       refreshToken: 'refresh-refreshed',
-      expiresAt: DateTime.utc(2026, 6, 1, 0, 0, 0),
-      refreshExpiresAt: DateTime.utc(2026, 7, 1, 0, 0, 0),
+      expiresAt: DateTime.now().toUtc().add(const Duration(days: 30)),
+      refreshExpiresAt: DateTime.now().toUtc().add(const Duration(days: 60)),
       user: const AuthUser(
         id: 'user-demo',
         email: 'demo@clonefanos.local',
@@ -435,5 +458,12 @@ class _SessionValidatingAuthRepository extends MockAuthRepository {
       role: AuthRole.user,
       isActive: true,
     );
+  }
+}
+
+class _ThrowingSessionStore extends InMemorySessionStore {
+  @override
+  Future<AuthSession?> read() async {
+    throw StateError('session store read failed');
   }
 }

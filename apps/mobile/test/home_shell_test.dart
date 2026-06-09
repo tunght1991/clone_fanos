@@ -9,13 +9,16 @@ import 'package:clone_fanos_mobile/features/auth/data/mock_auth_repository.dart'
 import 'package:clone_fanos_mobile/features/auth/state/app_state.dart';
 import 'package:clone_fanos_mobile/features/engagement/data/mock_engagement_repository.dart';
 import 'package:clone_fanos_mobile/features/discovery/data/mock_discovery_repository.dart';
+import 'package:clone_fanos_mobile/features/discovery/domain/discovery_models.dart';
+import 'package:clone_fanos_mobile/features/discovery/domain/discovery_repository.dart';
 import 'package:clone_fanos_mobile/features/home/presentation/home_shell.dart';
 import 'package:clone_fanos_mobile/features/player/data/mock_player_repository.dart';
 import 'package:clone_fanos_mobile/features/subscription/domain/subscription_models.dart';
 import 'package:clone_fanos_mobile/features/subscription/data/mock_subscription_repository.dart';
 
 void main() {
-  testWidgets('Home shell supports browse, search and detail navigation', (tester) async {
+  testWidgets('Home shell supports browse, search and detail navigation',
+      (tester) async {
     final analyticsRepository = MockAnalyticsRepository();
     final appState = AppState(
       authRepository: MockAuthRepository(),
@@ -46,7 +49,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Continue listening'), findsWidgets);
-    expect(analyticsRepository.recordedEvents.any((record) => record.event.eventName == 'home_viewed'), isTrue);
+    expect(
+        analyticsRepository.recordedEvents
+            .any((record) => record.event.eventName == 'home_viewed'),
+        isTrue);
 
     await tester.tap(find.byIcon(Icons.search_outlined));
     await tester.pumpAndSettle();
@@ -58,9 +64,11 @@ void main() {
     await tester.drag(find.byType(ListView).first, const Offset(0, -700));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Clean Architecture cho Product Teams'), findsWidgets);
+    expect(find.textContaining('Clean Architecture cho Product Teams'),
+        findsWidgets);
 
-    await tester.tap(find.byKey(const ValueKey('search-card-book-clean-architecture')));
+    await tester
+        .tap(find.byKey(const ValueKey('search-card-book-clean-architecture')));
     await tester.pumpAndSettle();
 
     expect(find.text('Audiobook detail'), findsOneWidget);
@@ -78,13 +86,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Clean Architecture cho Product Teams'), findsWidgets);
-    final eventNames = analyticsRepository.recordedEvents.map((record) => record.event.eventName).toList();
-    expect(eventNames, containsAll([
-      'search_viewed',
-      'search_submitted',
-      'search_result_clicked',
-      'audiobook_viewed',
-    ]));
+    final eventNames = analyticsRepository.recordedEvents
+        .map((record) => record.event.eventName)
+        .toList();
+    expect(
+        eventNames,
+        containsAll([
+          'search_viewed',
+          'search_submitted',
+          'search_result_clicked',
+          'audiobook_viewed',
+        ]));
   });
 
   testWidgets('Home shell uses consistent search terminology', (tester) async {
@@ -131,12 +143,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Type to search audiobooks'), findsOneWidget);
     expect(
-      find.text('Results prioritize title, author, narrator, tag, and category matches.'),
+      find.text(
+          'Results prioritize title, author, narrator, tag, and category matches.'),
       findsOneWidget,
     );
   });
 
-  testWidgets('Home shell supports search sort by title and order', (tester) async {
+  testWidgets('Home shell supports search sort by title and order',
+      (tester) async {
     final analyticsRepository = MockAnalyticsRepository();
     final appState = AppState(
       authRepository: MockAuthRepository(),
@@ -183,11 +197,64 @@ void main() {
     await tester.tap(find.text('Ascending'));
     await tester.pumpAndSettle();
 
-    final eventNames = analyticsRepository.recordedEvents.map((record) => record.event.eventName).toList();
+    final eventNames = analyticsRepository.recordedEvents
+        .map((record) => record.event.eventName)
+        .toList();
     expect(eventNames, contains('search_filter_changed'));
   });
 
-  testWidgets('Home shell shows and dismisses subscription refresh banner', (tester) async {
+  testWidgets(
+      'Home shell ignores stale search responses and keeps latest results',
+      (tester) async {
+    final appState = AppState(
+      authRepository: MockAuthRepository(),
+      contentRepository: _OutOfOrderSearchDiscoveryRepository(),
+      playerRepository: MockPlayerRepository(),
+      engagementRepository: MockEngagementRepository(),
+      subscriptionRepository: MockSubscriptionRepository(),
+      onboardingStore: InMemoryOnboardingStore(),
+      sessionStore: InMemorySessionStore(),
+    );
+
+    await appState.bootstrap();
+    await appState.completeOnboarding();
+    await appState.login(
+      email: 'demo@clonefanos.local',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      AppScope(
+        appState: appState,
+        child: MaterialApp(
+          home: HomeShell(appState: appState),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.search_outlined));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'clean');
+    await tester.pump(const Duration(milliseconds: 350));
+
+    await tester.enterText(find.byType(TextField), 'system');
+    await tester.pump(const Duration(milliseconds: 350));
+
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -700));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('search-card-book-latest-system')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('search-card-book-stale-clean')),
+        findsNothing);
+  });
+
+  testWidgets('Home shell shows and dismisses subscription refresh banner',
+      (tester) async {
     final appState = AppState(
       authRepository: MockAuthRepository(),
       contentRepository: MockDiscoveryRepository(),
@@ -225,7 +292,8 @@ void main() {
     expect(appState.subscriptionRefreshError, isNull);
   });
 
-  testWidgets('Home shell unlocks premium detail after entitlement refresh', (tester) async {
+  testWidgets('Home shell unlocks premium detail after entitlement refresh',
+      (tester) async {
     final analyticsRepository = MockAnalyticsRepository();
     final subscriptionRepository = MockSubscriptionRepository();
     final appState = AppState(
@@ -266,7 +334,8 @@ void main() {
     await tester.drag(find.byType(ListView).first, const Offset(0, -700));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('search-card-book-system-design')));
+    await tester
+        .tap(find.byKey(const ValueKey('search-card-book-system-design')));
     await tester.pumpAndSettle();
 
     expect(find.text('Upgrade'), findsOneWidget);
@@ -307,5 +376,61 @@ class _FailingSubscriptionRepository extends MockSubscriptionRepository {
     required String? accessToken,
   }) async {
     throw StateError('subscription refresh failed');
+  }
+}
+
+class _OutOfOrderSearchDiscoveryRepository extends MockDiscoveryRepository {
+  @override
+  Future<SearchPage> searchAudiobooks(DiscoverySearchRequest request) async {
+    final normalized = request.query.trim().toLowerCase();
+    if (normalized == 'clean') {
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+    } else {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final item = normalized == 'clean'
+        ? _buildSummary(
+            id: 'book-stale-clean',
+            title: 'Stale Clean Result',
+          )
+        : _buildSummary(
+            id: 'book-latest-system',
+            title: 'Latest System Result',
+          );
+
+    return SearchPage(
+      items: <AudiobookSummary>[item],
+      query: request.query,
+      page: 1,
+      pageSize: request.pageSize,
+      totalItems: 1,
+      totalPages: 1,
+      hasNext: false,
+    );
+  }
+
+  AudiobookSummary _buildSummary({
+    required String id,
+    required String title,
+  }) {
+    return AudiobookSummary(
+      id: id,
+      title: title,
+      description: 'test',
+      coverImageAssetKey: null,
+      authorId: 'author-test',
+      authorName: 'Author Test',
+      narratorIds: const <String>['narrator-test'],
+      narratorNames: const <String>['Narrator Test'],
+      categoryIds: const <String>['cat-test'],
+      categoryNames: const <String>['Category Test'],
+      tagNames: const <String>['tag'],
+      durationSec: 600,
+      premiumFlag: false,
+      status: 'PUBLISHED',
+      isFeatured: false,
+      isNew: false,
+      languageCode: 'en',
+    );
   }
 }

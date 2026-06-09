@@ -189,11 +189,30 @@ class _AuthScreenState extends State<AuthScreen> {
         failureEventName,
         payload: {
           ...payload,
-          'error': widget.appState.errorMessage,
+          'errorCategory': _normalizeAnalyticsErrorCategory(
+            widget.appState.errorMessage,
+          ),
         },
       ),
     );
   }
+}
+
+String _normalizeAnalyticsErrorCategory(Object? error) {
+  final message = (error ?? '').toString().toLowerCase();
+  if (message.contains('invalid credential')) {
+    return 'auth_invalid_credentials';
+  }
+  if (message.contains('timeout') ||
+      message.contains('socket') ||
+      message.contains('network')) {
+    return 'network';
+  }
+  if (message.contains('unauthorized') || message.contains('forbidden')) {
+    return 'auth_forbidden';
+  }
+
+  return 'unknown';
 }
 
 class _AuthHeroCard extends StatelessWidget {
@@ -438,11 +457,15 @@ String? _validateEmail(String? value) {
 }
 
 String? _validatePassword(String? value) {
-  return value == null || value.length < 8 ? 'Password must be at least 8 chars' : null;
+  return value == null || value.length < 8
+      ? 'Password must be at least 8 chars'
+      : null;
 }
 
 String? _validateDisplayName(String? value) {
-  return value == null || value.trim().isEmpty ? 'Display name is required' : null;
+  return value == null || value.trim().isEmpty
+      ? 'Display name is required'
+      : null;
 }
 
 class _ErrorBanner extends StatelessWidget {

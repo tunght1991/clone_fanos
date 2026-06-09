@@ -81,34 +81,36 @@ export class SubscriptionService {
         occurredAt: checkedAt,
       });
 
-      const candidate =
-        (request.checkoutSessionId
-          ? await this.dependencies.repositories.subscriptionRepository.findByCheckoutSessionId(request.checkoutSessionId)
-          : null) ?? (await this.dependencies.repositories.subscriptionRepository.findLatestByUserId(userId));
+      if (this.allowsClientReceiptActivation()) {
+        const candidate =
+          (request.checkoutSessionId
+            ? await this.dependencies.repositories.subscriptionRepository.findByCheckoutSessionId(request.checkoutSessionId)
+            : null) ?? (await this.dependencies.repositories.subscriptionRepository.findLatestByUserId(userId));
 
-      if (candidate) {
-        if (String(candidate.status).toLowerCase() === 'active') {
-          await this.dependencies.repositories.subscriptionRepository.markReceiptVerificationProcessed(verificationIdempotencyKey);
-          return this.buildReceiptVerificationResponse(userId, checkedAt);
-        }
+        if (candidate) {
+          if (String(candidate.status).toLowerCase() === 'active') {
+            await this.dependencies.repositories.subscriptionRepository.markReceiptVerificationProcessed(verificationIdempotencyKey);
+            return this.buildReceiptVerificationResponse(userId, checkedAt);
+          }
 
-        if (candidate.billingReference === verificationReference) {
-          await this.dependencies.repositories.subscriptionRepository.markReceiptVerificationProcessed(verificationIdempotencyKey);
-          return this.buildReceiptVerificationResponse(userId, checkedAt);
-        }
+          if (candidate.billingReference === verificationReference) {
+            await this.dependencies.repositories.subscriptionRepository.markReceiptVerificationProcessed(verificationIdempotencyKey);
+            return this.buildReceiptVerificationResponse(userId, checkedAt);
+          }
 
-        if (String(candidate.status).toLowerCase() !== 'active') {
-          await this.dependencies.repositories.subscriptionRepository.updateAfterWebhook({
-            subscriptionId: candidate.id,
-            billingProvider: request.provider ?? candidate.billingProvider,
-            billingStatus: 'PAID',
-            billingReference: verificationReference,
-            providerSubscriptionId: request.transactionId ?? request.orderId,
-            checkoutSessionId: request.checkoutSessionId ?? candidate.checkoutSessionId ?? undefined,
-            lastBillingAt: new Date(),
-            nextBillingAt: candidate.endAt,
-            status: 'ACTIVE',
-          });
+          if (String(candidate.status).toLowerCase() !== 'active') {
+            await this.dependencies.repositories.subscriptionRepository.updateAfterWebhook({
+              subscriptionId: candidate.id,
+              billingProvider: request.provider ?? candidate.billingProvider,
+              billingStatus: 'PAID',
+              billingReference: verificationReference,
+              providerSubscriptionId: request.transactionId ?? request.orderId,
+              checkoutSessionId: request.checkoutSessionId ?? candidate.checkoutSessionId ?? undefined,
+              lastBillingAt: new Date(),
+              nextBillingAt: candidate.endAt,
+              status: 'ACTIVE',
+            });
+          }
         }
       }
 
@@ -340,6 +342,10 @@ export class SubscriptionService {
         ].join('|'),
       )
       .digest('hex');
+  }
+
+  private allowsClientReceiptActivation(): boolean {
+    return this.dependencies.policy.billingMode === 'SANDBOX';
   }
 
   private async buildReceiptVerificationResponse(

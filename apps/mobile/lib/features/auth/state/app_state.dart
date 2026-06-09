@@ -57,8 +57,9 @@ class AppState extends ChangeNotifier {
 
   Future<void> bootstrap() async {
     await _runBusy(() async {
+      bool onboardingCompleted = false;
       try {
-        final onboardingCompleted = await onboardingStore.isCompleted();
+        onboardingCompleted = await onboardingStore.isCompleted();
         final storedSession = await sessionStore.read();
         if (storedSession == null) {
           _setUnauthenticatedState(
@@ -72,6 +73,7 @@ class AppState extends ChangeNotifier {
             );
           } else {
             _activateSession(restoredSession);
+            // Subscription refresh is best effort and must not downgrade auth phase.
             await _syncSubscriptionAfterAuth();
           }
         }
@@ -87,7 +89,11 @@ class AppState extends ChangeNotifier {
         );
       } catch (error) {
         _errorMessage = error.toString();
-        _phase = AppPhase.onboarding;
+        if (_session == null) {
+          _phase = onboardingCompleted
+              ? AppPhase.unauthenticated
+              : AppPhase.onboarding;
+        }
       }
     });
   }
@@ -272,9 +278,8 @@ class AppState extends ChangeNotifier {
     _subscription = null;
     _errorMessage = null;
     _subscriptionRefreshError = null;
-    _phase = onboardingCompleted
-        ? AppPhase.unauthenticated
-        : AppPhase.onboarding;
+    _phase =
+        onboardingCompleted ? AppPhase.unauthenticated : AppPhase.onboarding;
   }
 
   void _setSignedOutState() {
