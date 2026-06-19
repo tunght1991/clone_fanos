@@ -24,6 +24,8 @@ import './modules/engagement/engagement.controller.test.ts';
 import './modules/engagement/engagement.service.test.ts';
 import './modules/playback/playback.controller.test.ts';
 import './modules/playback/playback.service.test.ts';
+import './modules/retention/retention.controller.test.ts';
+import './modules/retention/retention.service.test.ts';
 import './modules/search/search.controller.test.ts';
 import './modules/search/search.alias.repository.test.ts';
 import './modules/search/search.index.repository.test.ts';

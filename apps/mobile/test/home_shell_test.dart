@@ -12,6 +12,8 @@ import 'package:clone_fanos_mobile/features/discovery/data/mock_discovery_reposi
 import 'package:clone_fanos_mobile/features/discovery/domain/discovery_models.dart';
 import 'package:clone_fanos_mobile/features/discovery/domain/discovery_repository.dart';
 import 'package:clone_fanos_mobile/features/home/presentation/home_shell.dart';
+import 'package:clone_fanos_mobile/features/notification/data/mock_notification_repository.dart';
+import 'package:clone_fanos_mobile/features/retention/data/mock_retention_repository.dart';
 import 'package:clone_fanos_mobile/features/player/data/mock_player_repository.dart';
 import 'package:clone_fanos_mobile/features/subscription/domain/subscription_models.dart';
 import 'package:clone_fanos_mobile/features/subscription/data/mock_subscription_repository.dart';
@@ -97,6 +99,123 @@ void main() {
           'search_result_clicked',
           'audiobook_viewed',
         ]));
+  });
+
+  testWidgets('Home shell shows retention summary and recommendations',
+      (tester) async {
+    final analyticsRepository = MockAnalyticsRepository();
+    final appState = AppState(
+      authRepository: MockAuthRepository(),
+      contentRepository: MockDiscoveryRepository(),
+      playerRepository: MockPlayerRepository(),
+      engagementRepository: MockEngagementRepository(),
+      subscriptionRepository: MockSubscriptionRepository(),
+      analyticsRepository: analyticsRepository,
+      retentionRepository: const MockRetentionRepository(),
+      onboardingStore: InMemoryOnboardingStore(),
+      sessionStore: InMemorySessionStore(),
+    );
+
+    await appState.bootstrap();
+    await appState.completeOnboarding();
+    await appState.login(
+      email: 'demo@clonefanos.local',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      AppScope(
+        appState: appState,
+        child: MaterialApp(
+          home: HomeShell(appState: appState),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Weekly habit summary'), findsOneWidget);
+    expect(find.text('Recommended next'), findsOneWidget);
+    expect(find.text('Your habit is sticking'), findsOneWidget);
+    expect(find.text('Learning Habit System'), findsWidgets);
+    expect(find.text('More from Anh Lê'), findsOneWidget);
+
+    final recommendationCard =
+        find.byKey(const ValueKey('retention-card-book-habit-system'));
+    await tester.ensureVisible(recommendationCard);
+    await tester.pumpAndSettle();
+    await tester.tap(recommendationCard);
+    await tester.pumpAndSettle();
+
+    final eventNames = analyticsRepository.recordedEvents
+        .map((record) => record.event.eventName)
+        .toList();
+    expect(eventNames, contains('retention_recommendation_clicked'));
+    expect(eventNames, contains('audiobook_card_clicked'));
+  });
+
+  testWidgets('Home shell shows and opens the resume reminder', (tester) async {
+    final analyticsRepository = MockAnalyticsRepository();
+    final appState = AppState(
+      authRepository: MockAuthRepository(),
+      contentRepository: MockDiscoveryRepository(),
+      playerRepository: MockPlayerRepository(),
+      engagementRepository: MockEngagementRepository(),
+      subscriptionRepository: MockSubscriptionRepository(),
+      analyticsRepository: analyticsRepository,
+      notificationRepository: const MockNotificationRepository(),
+      onboardingStore: InMemoryOnboardingStore(),
+      sessionStore: InMemorySessionStore(),
+    );
+
+    await appState.bootstrap();
+    await appState.completeOnboarding();
+    await appState.login(
+      email: 'demo@clonefanos.local',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      AppScope(
+        appState: appState,
+        child: MaterialApp(
+          home: HomeShell(appState: appState),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final reminderCard = find.byKey(const ValueKey('notification-reminder-card'));
+    expect(reminderCard, findsOneWidget);
+    expect(
+      find.descendant(
+        of: reminderCard,
+        matching: find.text('Japanese Daily Listening'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: reminderCard,
+        matching: find.text('Resume Chapter 2 at 04:12'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      analyticsRepository.recordedEvents
+          .any((record) => record.event.eventName == 'notification_home_viewed'),
+      isTrue,
+    );
+
+    await tester.ensureVisible(reminderCard);
+    await tester.pumpAndSettle();
+    await tester.tap(reminderCard);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Player'), findsOneWidget);
+    final eventNames = analyticsRepository.recordedEvents
+        .map((record) => record.event.eventName)
+        .toList();
+    expect(eventNames, contains('notification_resume_clicked'));
   });
 
   testWidgets('Home shell uses consistent search terminology', (tester) async {

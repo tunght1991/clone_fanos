@@ -15,10 +15,15 @@ import type { ContentAuditRepositoryBundle } from '../modules/content/content.au
 import type { ContentAuditEntryRow, ContentAuditRecordInput } from '../modules/content/content.audit.types.js';
 import type { ContentRepositoryBundle } from '../modules/content/content.repository.js';
 import type { AudiobookNarratorRow, AudiobookRow, ChapterRow } from '../modules/content/content.types.js';
+import type { EngagementRepositoryBundle } from '../modules/engagement/engagement.repository.js';
 import { PlaybackController } from '../modules/playback/playback.controller.js';
 import { PlaybackService } from '../modules/playback/playback.service.js';
 import type { PlaybackRepositoryBundle } from '../modules/playback/playback.repository.js';
 import type { PlaybackProgressRow } from '../modules/playback/playback.types.js';
+import { NotificationController } from '../modules/notification/notification.controller.js';
+import { NotificationService } from '../modules/notification/notification.service.js';
+import { RetentionController } from '../modules/retention/retention.controller.js';
+import { RetentionService } from '../modules/retention/retention.service.js';
 import { SearchController } from '../modules/search/search.controller.js';
 import { SearchService } from '../modules/search/search.service.js';
 import type { SearchRepositoryBundle } from '../modules/search/search.repository.js';
@@ -65,6 +70,20 @@ test('API smoke flow covers auth, content ops, browse, search, playback and audi
     contentRepositories: smokeState.contentRepositories,
   });
   const playbackController = new PlaybackController(playbackService);
+  const notificationService = new NotificationService({
+    contentRepositories: smokeState.contentRepositories,
+    engagementRepositories: smokeState.engagementRepositories,
+    playbackRepositories: smokeState.playbackRepositories,
+    clock: () => new Date('2026-05-12T12:00:00.000Z'),
+  });
+  const notificationController = new NotificationController(notificationService);
+  const retentionService = new RetentionService({
+    contentRepositories: smokeState.contentRepositories,
+    engagementRepositories: smokeState.engagementRepositories,
+    playbackRepositories: smokeState.playbackRepositories,
+    clock: () => new Date('2026-05-12T12:00:00.000Z'),
+  });
+  const retentionController = new RetentionController(retentionService);
 
   const searchService = new SearchService({
     repositories: smokeState.searchRepositories,
@@ -177,6 +196,18 @@ test('API smoke flow covers auth, content ops, browse, search, playback and audi
   assert.equal(loadedProgress.id, progress.id);
   assert.equal(loadedProgress.positionMs, 120000);
 
+  const retentionHome = await retentionController.getHome(learnerPrincipal.userId);
+  assert.equal(retentionHome.data.weeklySummary.listeningSessions, 1);
+  assert.equal(retentionHome.data.weeklySummary.activeDays, 1);
+  assert.equal(retentionHome.data.recommendations.length, 0);
+
+  const notificationHome = await notificationController.getHome(learnerPrincipal.userId);
+  assert.equal(notificationHome.meta.windowDays, 7);
+  assert.ok(notificationHome.data.resumeReminder);
+  assert.equal(notificationHome.data.resumeReminder?.audiobookId, audiobook.id);
+  assert.equal(notificationHome.data.resumeReminder?.chapterId, chapter.id);
+  assert.equal(notificationHome.data.resumeReminder?.title, 'Atomic Habits');
+
   const auditTrail = await smokeState.contentAuditRepositories.contentAuditRepository.listByEntity(
     'audiobook',
     audiobook.id,
@@ -198,6 +229,53 @@ function createSmokeState() {
   const progressByKey = new Map<string, PlaybackProgressRow>();
   const auditEntries: ContentAuditEntryRow[] = [];
   const reindexEvents: Array<{ audiobookId: string; reason: string }> = [];
+  const engagementRepositories: EngagementRepositoryBundle = {
+    bookmarkRepository: {
+      async findByUserAndId() {
+        return null;
+      },
+      async listBookmarks() {
+        return { data: [], totalItems: 0 };
+      },
+      async createBookmark() {
+        throw new Error('not expected');
+      },
+      async deleteBookmark() {
+        throw new Error('not expected');
+      },
+    },
+    favoriteRepository: {
+      async findByUserAndAudiobookId() {
+        return null;
+      },
+      async listFavorites() {
+        return { data: [], totalItems: 0 };
+      },
+      async upsertFavorite() {
+        throw new Error('not expected');
+      },
+      async deleteFavorite() {
+        throw new Error('not expected');
+      },
+    },
+    noteRepository: {
+      async findByUserAndId() {
+        return null;
+      },
+      async listNotes() {
+        return { data: [], totalItems: 0 };
+      },
+      async createNote() {
+        throw new Error('not expected');
+      },
+      async updateNote() {
+        throw new Error('not expected');
+      },
+      async deleteNote() {
+        throw new Error('not expected');
+      },
+    },
+  };
 
   const adminUser: AuthUserRow = {
     id: 'user-admin',
@@ -520,6 +598,23 @@ function createSmokeState() {
       async findByUserAndAudiobookId(userId: string, audiobookId: string) {
         return progressByKey.get(buildProgressKey(userId, audiobookId)) ?? null;
       },
+      async listRecentByUser() {
+        return [...progressByKey.values()]
+          .sort((left, right) => (right.lastPlayedAt?.getTime() ?? 0) - (left.lastPlayedAt?.getTime() ?? 0))
+          .map((progress) => ({
+            audiobookId: progress.audiobookId,
+            audiobookTitle: audiobooks.get(progress.audiobookId)?.title ?? 'Unknown',
+            audiobookCoverImageAssetKey: audiobooks.get(progress.audiobookId)?.coverImageAssetKey ?? null,
+            authorName: authors.get(audiobooks.get(progress.audiobookId)?.authorId ?? '')?.name ?? 'Unknown Author',
+            chapterId: progress.chapterId,
+            chapterTitle: chapters.get(progress.chapterId)?.title ?? 'Unknown Chapter',
+            positionMs: progress.positionMs,
+            totalDurationMs: (chapters.get(progress.chapterId)?.durationSec ?? 0) * 1000,
+            completed: progress.completed,
+            lastPlayedAt: progress.lastPlayedAt ?? now,
+            premiumFlag: audiobooks.get(progress.audiobookId)?.premiumFlag ?? false,
+          }));
+      },
       async upsertProgress(input) {
         const key = buildProgressKey(input.userId, input.audiobookId);
         const next: PlaybackProgressRow = {
@@ -589,6 +684,7 @@ function createSmokeState() {
     contentRepositories,
     contentAuditRepositories,
     playbackRepositories,
+    engagementRepositories,
     searchRepositories,
     reindexEvents,
     auditEntries,

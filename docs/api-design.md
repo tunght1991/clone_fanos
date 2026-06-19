@@ -616,14 +616,196 @@ Response:
 - `expiresAt` là bắt buộc với URL tạm thời.
 - `headers` chỉ xuất hiện khi backend cần hướng dẫn client cách fetch asset.
 
-## 13. Quy tắc cho admin API
+## 12. Retention DTO
+
+### 12.1 Mục tiêu
+
+- Cung cấp một read model nhỏ cho Home để hiển thị weekly habit summary và recommendation cards.
+- Contract chỉ đọc, không có state-changing action.
+
+### 12.2 Enum
+
+```ts
+type RetentionRecommendationReasonType =
+  | 'MORE_FROM_AUTHOR'
+  | 'FRESH_PICK'
+  | 'HABIT_BUILDER';
+```
+
+### 12.3 DTO
+
+```ts
+interface RetentionWeeklySummaryDto {
+  periodStart: string;
+  periodEnd: string;
+  headline: string;
+  description: string;
+  activeDays: number;
+  listeningSessions: number;
+  bookmarksCreated: number;
+  notesCreated: number;
+  favoritesAdded: number;
+  topAudiobookTitle: string | null;
+  topAuthorName: string | null;
+  lastActivityAt: string | null;
+}
+
+interface RetentionRecommendationDto {
+  audiobookId: string;
+  title: string;
+  description: string | null;
+  coverImageAssetKey: string | null;
+  authorId: string;
+  authorName: string;
+  durationSec: number;
+  premiumFlag: boolean;
+  status: ContentStatus;
+  publishedAt: string | null;
+  reasonType: RetentionRecommendationReasonType;
+  reason: string;
+}
+
+interface RetentionHomeResponseDto {
+  data: {
+    weeklySummary: RetentionWeeklySummaryDto;
+    recommendations: RetentionRecommendationDto[];
+  };
+  meta: {
+    generatedAt: string;
+    windowDays: number;
+  };
+}
+```
+
+### 12.4 Endpoint
+
+```text
+GET /retention/home
+```
+
+Response example:
+
+```json
+{
+  "data": {
+    "weeklySummary": {
+      "periodStart": "2026-06-02T00:00:00.000Z",
+      "periodEnd": "2026-06-09T12:00:00.000Z",
+      "headline": "Your habit is sticking",
+      "description": "3 active titles, 2 bookmarks, 1 note, 1 favorite",
+      "activeDays": 3,
+      "listeningSessions": 2,
+      "bookmarksCreated": 2,
+      "notesCreated": 1,
+      "favoritesAdded": 1,
+      "topAudiobookTitle": "Learning Habit System",
+      "topAuthorName": "Anh Le",
+      "lastActivityAt": "2026-06-09T01:00:00.000Z"
+    },
+    "recommendations": [
+      {
+        "audiobookId": "book-habit-system",
+        "title": "Learning Habit System",
+        "description": "Design habits that stick.",
+        "coverImageAssetKey": "cover-habit-system",
+        "authorId": "author-anh",
+        "authorName": "Anh Le",
+        "durationSec": 15600,
+        "premiumFlag": true,
+        "status": "published",
+        "publishedAt": "2026-06-03T00:00:00.000Z",
+        "reasonType": "MORE_FROM_AUTHOR",
+        "reason": "More from Anh Le"
+      }
+    ]
+  },
+  "meta": {
+    "generatedAt": "2026-06-09T12:00:00.000Z",
+    "windowDays": 7
+  }
+}
+```
+
+### 12.5 Quy tắc contract
+
+- Endpoint chỉ đọc và luôn trả về `data` + `meta`.
+- `recommendations` có thể rỗng khi không đủ tín hiệu.
+- `headline` và `description` nên được backend tạo từ dữ liệu hoạt động thực tế, không hard-code ở client.
+- `reasonType` là enum để client có thể render label ổn định nếu cần.
+- Không dùng retention DTO cho reminder/notification inbox; Sprint 21 dùng contract riêng cho in-app resume reminder.
+
+## 13. Notification DTO
+
+### 13.1 Mục tiêu
+
+- Cung cấp một read model nhỏ cho Home để hiển thị in-app resume reminder.
+- Contract chỉ đọc, không có state-changing action, push provider, hay notification inbox semantics.
+
+### 13.2 DTO
+
+```ts
+interface NotificationResumeReminderDto {
+  audiobookId: string;
+  chapterId: string;
+  title: string;
+  subtitle: string | null;
+  progressMs: number;
+  lastActivityAt: string;
+}
+
+interface NotificationHomeResponseDto {
+  data: {
+    resumeReminder: NotificationResumeReminderDto | null;
+  };
+  meta: {
+    generatedAt: string;
+    windowDays: number;
+  };
+}
+```
+
+### 13.3 Endpoint
+
+```text
+GET /notifications/home
+```
+
+Response example:
+
+```json
+{
+  "data": {
+    "resumeReminder": {
+      "audiobookId": "book-habit-system",
+      "chapterId": "chapter-1",
+      "title": "Learning Habit System",
+      "subtitle": "Resume chapter 1 at 42:00",
+      "progressMs": 2520000,
+      "lastActivityAt": "2026-06-09T01:00:00.000Z"
+    }
+  },
+  "meta": {
+    "generatedAt": "2026-06-09T12:00:00.000Z",
+    "windowDays": 7
+  }
+}
+```
+
+### 13.4 Quy tắc contract
+
+- Endpoint chỉ đọc và luôn trả về `data` + `meta`.
+- `resumeReminder` có thể là `null` khi không có phiên nghe chưa hoàn tất.
+- `subtitle` nên diễn đạt ngắn gọn mục tiêu resume, không nhét logic UI riêng vào client.
+- Contract này chỉ phục vụ in-app reminder; không dùng cho push notification, inbox, hay preference management.
+
+## 14. Quy tắc cho admin API
 
 - Mọi endpoint `/admin/*` yêu cầu role admin.
 - Tạo và sửa nội dung phải validate đầy đủ metadata.
 - Publish / unpublish phải tạo audit log.
 - MVP hiện tại ưu tiên `assetKey` / asset picker cho metadata; nếu sau này có upload service riêng thì tách flow đó thành contract khác, không trộn vào admin metadata CRUD.
 
-## 14. Quy tắc cho analytics API
+## 15. Quy tắc cho analytics API
 
 - Event tracking phải nhẹ và không block luồng nghe.
 - Có thể batch events khi app offline hoặc mạng yếu.
@@ -634,12 +816,12 @@ Response:
   - `payload`
 - Không ghi dữ liệu nhạy cảm không cần thiết vào payload.
 
-## 15. Versioning
+## 16. Versioning
 
 - Dùng prefix version khi cần: `/v1/...`
 - Không phá backward compatibility nếu chưa có kế hoạch migration rõ ràng.
 
-## 16. Verification checklist
+## 17. Verification checklist
 
 - [ ] Mỗi endpoint có input và output schema rõ ràng
 - [ ] Error response dùng một format thống nhất
@@ -649,7 +831,7 @@ Response:
 - [ ] Naming nhất quán giữa các endpoint
 - [ ] Tài liệu API hoặc type contract được commit cùng implementation
 
-## 17. Câu hỏi mở
+## 18. Câu hỏi mở
 
 1. API sẽ dùng cookie session hay bearer token cho mobile?
 2. Có cần webhook billing ngay từ MVP không?

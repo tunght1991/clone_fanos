@@ -402,3 +402,43 @@ Mục tiêu: đóng các khoảng trống evidence còn lại trước quyết �
 | Search/filter terminology có thể drift giữa mobile và admin | Mobile/Admin | DONE | Đã chuẩn hóa search/filter copy trên mobile discovery và admin management surfaces trong Sprint 15 |
 | Docs và checklist có thể lệch trạng thái thực thi | Platform/QA | DONE | Đã cập nhật Sprint 15 spec, plan, và master checklist |
 | Asset access động phải đồng nhất giữa backend và mobile | Backend/Mobile | DONE | Đã giữ backend-resolved asset access contract trong Sprint 12 |
+
+## Sprint 20: Retention Loop v1
+
+Mục tiêu: thêm một retention loop nhỏ trên Home để hiển thị weekly habit summary và recommended next items, dùng read-only backend contract và analytics nhẹ.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Thêm `GET /retention/home` và DTO cho summary/recommendations | Backend | DONE | Endpoint read-only đã có `data` + `meta` và summary/recommendation DTO |
+| Ghép retention data vào Home mobile | Mobile | DONE | Home load browse feed và retention data cùng lúc, sau đó render summary + recommendations |
+| Track retention impression và recommendation tap analytics | Mobile/Backend | DONE | `retention_home_viewed` và `retention_recommendation_clicked` đã có |
+| Cập nhật API design và home screen spec | Platform/Mobile | DONE | `docs/api-design.md` và `docs/mobile-screen-specs/02-home-browse.md` đã được sync |
+| Ghi nhận sprint spec/implementation plan | Platform/QA | DONE | `docs/sprint-20-spec.md` và `docs/sprint-20-implementation-plan.md` đã được thêm |
+
+### Checkpoint Sprint 20
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| API contract và backend smoke xanh | Backend | DONE | `pnpm.cmd api:test` pass với retention coverage |
+| Home retention surface xanh | Mobile | DONE | `flutter test` pass với retention summary/recommendation coverage |
+| Docs phản ánh trạng thái implementation | Platform/QA | DONE | Sprint 20 spec, plan, API design, và home screen spec đã được cập nhật |
+
+## Sprint 21: In-App Resume Reminder v1
+
+Mục tiêu: thêm một reminder nhỏ trên Home để user quay lại audiobook dang nghe nhanh hơn, dùng contract read-only riêng cho in-app reminder và analytics nhẹ.
+
+| Task | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Thêm `GET /notifications/home` và DTO cho resume reminder | Backend/Shared | DONE | Contract read-only riêng cho in-app reminder đã có trong shared package, API, và docs |
+| Implement backend reminder selection từ playback activity | Backend | DONE | Chọn resume target deterministic từ playback + engagement signals và trả empty state rõ ràng |
+| Ghép reminder data vào Home mobile | Mobile | DONE | Home load reminder song song với browse/retention data và render card khi có dữ liệu |
+| Track notification impression và resume tap analytics | Mobile/Backend | DONE | `notification_home_viewed` và `notification_resume_clicked` đã được hook vào Home |
+| Cập nhật API design, home screen spec và sprint docs | Platform/Mobile/QA | DONE | `docs/api-design.md`, `docs/mobile-screen-specs/02-home-browse.md`, và sprint tracking đã được sync |
+
+### Checkpoint Sprint 21
+
+| Checkpoint | Owner | Status | Ghi chú |
+|---|---|---|---|
+| Notification contract ổn định | Backend | DONE | Response shape có `resumeReminder` nullable và `meta` metadata |
+| Home reminder surface hoạt động | Mobile | DONE | Reminder hiện/ẩn đúng theo activity và deep-link đúng target |
+| Analytics và docs đã sync | Platform/QA | DONE | Event names, screen spec, và master checklist đồng bộ |

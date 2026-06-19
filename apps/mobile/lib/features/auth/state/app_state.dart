@@ -9,6 +9,8 @@ import '../../analytics/domain/analytics_repository.dart';
 import '../../discovery/domain/discovery_repository.dart';
 import '../../engagement/domain/engagement_repository.dart';
 import '../../player/domain/player_repository.dart';
+import '../../notification/domain/notification_repository.dart';
+import '../../retention/domain/retention_repository.dart';
 import '../../subscription/domain/subscription_models.dart';
 import '../../subscription/domain/subscription_repository.dart';
 import '../domain/auth_models.dart';
@@ -23,6 +25,8 @@ class AppState extends ChangeNotifier {
   final EngagementRepository engagementRepository;
   final SubscriptionRepository subscriptionRepository;
   final AnalyticsRepository analyticsRepository;
+  final NotificationRepository notificationRepository;
+  final RetentionRepository retentionRepository;
   final OnboardingStore onboardingStore;
   final SessionStore sessionStore;
 
@@ -40,6 +44,8 @@ class AppState extends ChangeNotifier {
     required this.engagementRepository,
     required this.subscriptionRepository,
     this.analyticsRepository = const NoopAnalyticsRepository(),
+    this.notificationRepository = const NoopNotificationRepository(),
+    this.retentionRepository = const NoopRetentionRepository(),
     required this.onboardingStore,
     required this.sessionStore,
   });

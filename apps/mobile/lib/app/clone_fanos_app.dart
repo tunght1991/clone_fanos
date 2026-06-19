@@ -9,7 +9,9 @@ import '../features/auth/state/app_state.dart';
 import '../features/analytics/domain/analytics_repository.dart';
 import '../features/engagement/domain/engagement_repository.dart';
 import '../features/discovery/domain/discovery_repository.dart';
+import '../features/notification/domain/notification_repository.dart';
 import '../features/player/domain/player_repository.dart';
+import '../features/retention/domain/retention_repository.dart';
 import '../features/subscription/domain/subscription_repository.dart';
 import 'app_config.dart';
 import 'app_scope.dart';
@@ -41,6 +43,8 @@ class _CloneFanosAppState extends State<CloneFanosApp> {
       engagementRepository: createEngagementRepository(_config),
       subscriptionRepository: createSubscriptionRepository(_config),
       analyticsRepository: createAnalyticsRepository(_config),
+      notificationRepository: createNotificationRepository(_config),
+      retentionRepository: createRetentionRepository(_config),
       onboardingStore: InMemoryOnboardingStore(),
       sessionStore: createSessionStore(),
     );

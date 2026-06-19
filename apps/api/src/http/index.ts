@@ -7,6 +7,7 @@ export * from './content.http.controller.js';
 export * from './engagement.http.controller.js';
 export * from './health.http.controller.js';
 export * from './http.tokens.js';
+export * from './notification.http.controller.js';
 export * from './playback.http.controller.js';
 export * from './search.http.controller.js';
 export * from './request-context.js';

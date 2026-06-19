@@ -3,6 +3,7 @@ import type { PlaybackProgressRow } from './playback.types.js';
 
 export interface PlaybackProgressRepository {
   findByUserAndAudiobookId(userId: string, audiobookId: string): Promise<PlaybackProgressRow | null>;
+  listRecentByUser(userId: string, limit: number): Promise<RecentPlaybackSummaryRow[]>;
   upsertProgress(input: {
     userId: string;
     audiobookId: string;
@@ -44,6 +45,33 @@ export class PostgresPlaybackProgressRepository implements PlaybackProgressRepos
     );
 
     return result.rows[0] ?? null;
+  }
+
+  async listRecentByUser(userId: string, limit: number): Promise<RecentPlaybackSummaryRow[]> {
+    const result = await this.database.query<RecentPlaybackSummaryRow>(
+      `SELECT
+        user_progress.audiobook_id AS "audiobookId",
+        audiobooks.title AS "audiobookTitle",
+        audiobooks.cover_image_asset_key AS "audiobookCoverImageAssetKey",
+        authors.name AS "authorName",
+        user_progress.chapter_id AS "chapterId",
+        chapters.title AS "chapterTitle",
+        user_progress.position_ms AS "positionMs",
+        (chapters.duration_sec * 1000)::integer AS "totalDurationMs",
+        user_progress.completed,
+        user_progress.last_played_at AS "lastPlayedAt",
+        audiobooks.premium_flag AS "premiumFlag"
+       FROM user_progress
+       INNER JOIN audiobooks ON audiobooks.id = user_progress.audiobook_id
+       INNER JOIN authors ON authors.id = audiobooks.author_id
+       INNER JOIN chapters ON chapters.id = user_progress.chapter_id
+       WHERE user_progress.user_id = $1
+       ORDER BY user_progress.last_played_at DESC NULLS LAST, user_progress.updated_at DESC
+       LIMIT $2`,
+      [userId, limit],
+    );
+
+    return result.rows;
   }
 
   async upsertProgress(input: {
@@ -94,3 +122,16 @@ export class PostgresPlaybackProgressRepository implements PlaybackProgressRepos
   }
 }
 
+export interface RecentPlaybackSummaryRow {
+  audiobookId: string;
+  audiobookTitle: string;
+  audiobookCoverImageAssetKey: string | null;
+  authorName: string;
+  chapterId: string;
+  chapterTitle: string;
+  positionMs: number;
+  totalDurationMs: number;
+  completed: boolean;
+  lastPlayedAt: Date;
+  premiumFlag: boolean;
+}

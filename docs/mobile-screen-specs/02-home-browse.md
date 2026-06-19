@@ -19,6 +19,10 @@ Cho user thấy nội dung phù hợp ngay khi vào app và giảm số tap đ�
 ## 3. UI Components
 
 - Continue listening card
+- In-app resume reminder card
+- Resume reminder card appears above continue listening when actionable.
+- Weekly habit summary card
+- Recommended next cards
 - Category carousel / list
 - New / featured section
 - Premium badge
@@ -37,10 +41,13 @@ Cho user thấy nội dung phù hợp ngay khi vào app và giảm số tap đ�
 - `GET /audiobooks`
 - `GET /audiobooks?categoryId=...` cho filter category
 - `GET /playback/progress/:audiobookId` cho continue listening
+- `GET /notifications/home` cho in-app resume reminder
+- `GET /retention/home` cho weekly summary và recommendations
 
 ## 6. Interaction Rules
 
 - Tap card => mở audiobook detail.
+- Tap resume reminder => mở đúng audiobook/chapter và resume position gần nhất.
 - Continue listening => resume đúng position gần nhất.
 - Category filter phải giữ trạng thái chọn hiện tại dựa trên taxonomy đã có trong app.
 - Nếu section rỗng thì ẩn hoặc thay bằng empty state ngắn.
@@ -55,6 +62,10 @@ Cho user thấy nội dung phù hợp ngay khi vào app và giảm số tap đ�
 ## 8. Analytics
 
 - `home_viewed`
+- `notification_home_viewed`
+- `retention_home_viewed`
 - `category_viewed`
 - `audiobook_card_clicked`
+- `notification_resume_clicked`
+- `retention_recommendation_clicked`
 - `continue_listening_clicked`

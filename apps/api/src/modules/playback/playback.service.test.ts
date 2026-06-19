@@ -207,6 +207,9 @@ function createPlaybackRepositories(): PlaybackRepositoryBundle {
       async findByUserAndAudiobookId(userId: string, audiobookId: string) {
         return Array.from(store.values()).find((item) => item.userId === userId && item.audiobookId === audiobookId) ?? null;
       },
+      async listRecentByUser() {
+        return [];
+      },
       async upsertProgress(input) {
         const key = `${input.userId}:${input.audiobookId}`;
         const existing = store.get(key);

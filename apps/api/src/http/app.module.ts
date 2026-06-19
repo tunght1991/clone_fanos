@@ -5,7 +5,9 @@ import { AuthController } from '../modules/auth/index.js';
 import { AnalyticsController } from '../modules/analytics/index.js';
 import { AdminContentService, ContentAuditService, ContentController, ContentMutationService } from '../modules/content/index.js';
 import { EngagementController } from '../modules/engagement/index.js';
+import { NotificationController } from '../modules/notification/index.js';
 import { PlaybackController } from '../modules/playback/index.js';
+import { RetentionController } from '../modules/retention/index.js';
 import { SearchController, SearchReindexService } from '../modules/search/index.js';
 import { SubscriptionController } from '../modules/subscription/index.js';
 import { AdminHttpController } from './admin.http.controller.js';
@@ -16,7 +18,9 @@ import { ContentHttpController } from './content.http.controller.js';
 import { AssetsHttpController } from './assets.http.controller.js';
 import { HealthHttpController } from './health.http.controller.js';
 import { API_RUNTIME_TOKEN } from './http.tokens.js';
+import { NotificationHttpController } from './notification.http.controller.js';
 import { PlaybackHttpController } from './playback.http.controller.js';
+import { RetentionHttpController } from './retention.http.controller.js';
 import { SearchHttpController } from './search.http.controller.js';
 import { SubscriptionHttpController } from './subscription.http.controller.js';
 import { AssetAccessService } from '../modules/assets/index.js';
@@ -30,6 +34,8 @@ import { AssetAccessService } from '../modules/assets/index.js';
     PlaybackHttpController,
     SearchHttpController,
     EngagementHttpController,
+    RetentionHttpController,
+    NotificationHttpController,
     ContentHttpController,
     AssetsHttpController,
     SubscriptionHttpController,
@@ -62,6 +68,16 @@ import { AssetAccessService } from '../modules/assets/index.js';
     {
       provide: PlaybackController,
       useFactory: (runtime: ReturnType<typeof bootstrapApiRuntime>) => runtime.playbackController,
+      inject: [API_RUNTIME_TOKEN],
+    },
+    {
+      provide: RetentionController,
+      useFactory: (runtime: ReturnType<typeof bootstrapApiRuntime>) => runtime.retentionController,
+      inject: [API_RUNTIME_TOKEN],
+    },
+    {
+      provide: NotificationController,
+      useFactory: (runtime: ReturnType<typeof bootstrapApiRuntime>) => runtime.notificationController,
       inject: [API_RUNTIME_TOKEN],
     },
     {

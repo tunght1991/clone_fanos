@@ -11,8 +11,10 @@ import '../../engagement/presentation/bookmarks_screen.dart';
 import '../../engagement/presentation/favorites_screen.dart';
 import '../../discovery/domain/discovery_models.dart';
 import '../../discovery/domain/discovery_repository.dart';
+import '../../notification/domain/notification_models.dart';
 import '../../player/presentation/player_screen.dart';
 import '../../player/presentation/player_screen_logic.dart';
+import '../../retention/domain/retention_models.dart';
 import '../../subscription/domain/subscription_models.dart';
 import '../../subscription/presentation/subscription_screen.dart';
 
@@ -175,23 +177,50 @@ class _HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<_HomeTab> {
   String? _selectedCategoryId;
-  late Future<BrowseFeed> _feedFuture;
+  late Future<_HomeTabData> _homeFuture;
+  bool _notificationImpressionTracked = false;
+  bool _retentionImpressionTracked = false;
 
   @override
   void initState() {
     super.initState();
-    _feedFuture = _loadFeed();
+    _homeFuture = _loadHomeData();
   }
 
-  Future<BrowseFeed> _loadFeed() {
-    return widget.appState.contentRepository
-        .getBrowseFeed(categoryId: _selectedCategoryId);
+  Future<_HomeTabData> _loadHomeData() async {
+    final results = await Future.wait<dynamic>([
+      widget.appState.contentRepository.getBrowseFeed(
+        categoryId: _selectedCategoryId,
+      ),
+      widget.appState.retentionRepository.getHomeData(
+        userId: widget.appState.currentUserId,
+        accessToken: widget.appState.accessToken,
+      ),
+      _loadNotificationData(),
+    ]);
+
+    return _HomeTabData(
+      feed: results[0] as BrowseFeed,
+      retention: results[1] as RetentionHomeData,
+      notification: results[2] as NotificationHomeData,
+    );
+  }
+
+  Future<NotificationHomeData> _loadNotificationData() async {
+    try {
+      return await widget.appState.notificationRepository.getHomeData(
+        userId: widget.appState.currentUserId,
+        accessToken: widget.appState.accessToken,
+      );
+    } catch (_) {
+      return NotificationHomeData.empty();
+    }
   }
 
   void _selectCategory(ContentCategory? category) {
     setState(() {
       _selectedCategoryId = category?.id;
-      _feedFuture = _loadFeed();
+      _homeFuture = _loadHomeData();
     });
 
     unawaited(
@@ -207,8 +236,8 @@ class _HomeTabState extends State<_HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<BrowseFeed>(
-      future: _feedFuture,
+    return FutureBuilder<_HomeTabData>(
+      future: _homeFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _StateMessage(
@@ -218,7 +247,7 @@ class _HomeTabState extends State<_HomeTab> {
                 'Kiá»ƒm tra láº¡i káº¿t ná»‘i hoáº·c thá»­ táº£i láº¡i.',
             actionLabel: 'Thá»­ láº¡i',
             onAction: () => setState(() {
-              _feedFuture = _loadFeed();
+              _homeFuture = _loadHomeData();
             }),
           );
         }
@@ -227,7 +256,42 @@ class _HomeTabState extends State<_HomeTab> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final feed = snapshot.data!;
+        final homeData = snapshot.data!;
+        final feed = homeData.feed;
+        final retention = homeData.retention;
+        final notification = homeData.notification;
+
+        if (!_notificationImpressionTracked &&
+            notification.resumeReminder != null) {
+          _notificationImpressionTracked = true;
+          unawaited(
+            widget.appState.trackAnalyticsEvent(
+              'notification_home_viewed',
+              payload: {
+                'audiobookId': notification.resumeReminder!.audiobookId,
+                'chapterId': notification.resumeReminder!.chapterId,
+                'progressMs': notification.resumeReminder!.progressMs,
+                'windowDays': notification.windowDays,
+              },
+            ),
+          );
+        }
+
+        if (!_retentionImpressionTracked && retention.recommendations.isNotEmpty) {
+          _retentionImpressionTracked = true;
+          unawaited(
+            widget.appState.trackAnalyticsEvent(
+              'retention_home_viewed',
+              payload: {
+                'recommendationCount': retention.recommendations.length,
+                'activeDays': retention.weeklySummary.activeDays,
+                'bookmarksCreated': retention.weeklySummary.bookmarksCreated,
+                'notesCreated': retention.weeklySummary.notesCreated,
+                'favoritesAdded': retention.weeklySummary.favoritesAdded,
+              },
+            ),
+          );
+        }
         final content = <Widget>[
           _HeroPanel(
             title: 'Học nhanh, nghe tiếp, quay lại trang chủ',
@@ -236,6 +300,22 @@ class _HomeTabState extends State<_HomeTab> {
             onSearch: widget.onJumpToSearch,
           ),
           const SizedBox(height: 20),
+          if (notification.resumeReminder != null) ...[
+            _SectionHeader(
+              title: 'Resume reminder',
+              subtitle: 'Jump back into the last unfinished chapter',
+            ),
+            const SizedBox(height: 12),
+            _ResumeReminderCard(
+              key: const ValueKey('notification-reminder-card'),
+              reminder: notification.resumeReminder!,
+              onTap: () => _openNotificationReminder(
+                context,
+                notification.resumeReminder!,
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
           _SectionHeader(
             title: 'Continue listening',
             subtitle: feed.continueListening == null
@@ -272,6 +352,41 @@ class _HomeTabState extends State<_HomeTab> {
               },
             ),
           const SizedBox(height: 24),
+          _SectionHeader(
+            title: 'Weekly habit summary',
+            subtitle: 'Nhìn lại tuần này để quay lại nhanh hơn ở phiên sau',
+          ),
+          const SizedBox(height: 12),
+          _RetentionSummaryCard(summary: retention.weeklySummary),
+          const SizedBox(height: 24),
+          _SectionHeader(
+            title: 'Recommended next',
+            subtitle: 'Những tựa phù hợp với thói quen nghe gần đây của bạn',
+          ),
+          const SizedBox(height: 12),
+          if (retention.recommendations.isEmpty)
+            const _EmptyCard(
+              icon: Icons.recommend_outlined,
+              title: 'Chưa có gợi ý phù hợp',
+              description:
+                  'Khi bạn nghe thêm vài nội dung, app sẽ đề xuất những tựa liên quan hơn.',
+            )
+          else
+            ...retention.recommendations.map(
+              (recommendation) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: AudiobookSummaryCard(
+                  key: ValueKey('retention-card-${recommendation.item.id}'),
+                  item: recommendation.item,
+                  badgeLabel: recommendation.reason,
+                  onTap: () => _openRetentionDetail(
+                    context,
+                    recommendation,
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
           _SectionHeader(
             title: 'Categories',
             subtitle: 'Lọc theo chủ đề để tìm đúng nội dung nhanh hơn',
@@ -365,9 +480,9 @@ class _HomeTabState extends State<_HomeTab> {
         return RefreshIndicator(
           onRefresh: () async {
             setState(() {
-              _feedFuture = _loadFeed();
+              _homeFuture = _loadHomeData();
             });
-            await _feedFuture;
+            await _homeFuture;
           },
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -387,6 +502,18 @@ class _HomeTabState extends State<_HomeTab> {
       },
     );
   }
+}
+
+class _HomeTabData {
+  final BrowseFeed feed;
+  final RetentionHomeData retention;
+  final NotificationHomeData notification;
+
+  const _HomeTabData({
+    required this.feed,
+    required this.retention,
+    required this.notification,
+  });
 }
 
 class _SearchTab extends StatefulWidget {
@@ -949,11 +1076,13 @@ class _ProfileTabState extends State<_ProfileTab> {
 
 class AudiobookSummaryCard extends StatelessWidget {
   final AudiobookSummary item;
+  final String? badgeLabel;
   final VoidCallback onTap;
 
   const AudiobookSummaryCard({
     super.key,
     required this.item,
+    this.badgeLabel,
     required this.onTap,
   });
 
@@ -1001,6 +1130,10 @@ class AudiobookSummaryCard extends StatelessWidget {
                         item.authorName,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
+                      if (badgeLabel != null) ...[
+                        const SizedBox(height: 8),
+                        _InfoPill(label: badgeLabel!),
+                      ],
                       const SizedBox(height: 4),
                       Text(
                         item.narratorNames.join(' • '),
@@ -1442,6 +1575,91 @@ class _ChapterList extends StatelessWidget {
   }
 }
 
+class _ResumeReminderCard extends StatelessWidget {
+  final NotificationResumeReminder reminder;
+  final VoidCallback onTap;
+
+  const _ResumeReminderCard({
+    super.key,
+    required this.reminder,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              colors: [
+                CloneFanosTokens.primary.withOpacity(0.12),
+                CloneFanosTokens.secondary.withOpacity(0.08),
+                theme.colorScheme.surface,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: CloneFanosTokens.primary,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.notifications_active_outlined,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Resume reminder',
+                      style: theme.textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(reminder.title, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text(
+                      reminder.subtitle ?? 'Continue where you left off',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _InfoPill(
+                          label:
+                              'Updated ${_formatNotificationDate(reminder.lastActivityAt)}',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ContinueListeningCard extends StatelessWidget {
   final ListeningProgress progress;
   final VoidCallback onTap;
@@ -1641,6 +1859,83 @@ class _EmptyCard extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RetentionSummaryCard extends StatelessWidget {
+  final RetentionWeeklySummary summary;
+
+  const _RetentionSummaryCard({
+    required this.summary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasActivity = summary.activeDays > 0 ||
+        summary.listeningSessions > 0 ||
+        summary.bookmarksCreated > 0 ||
+        summary.notesCreated > 0 ||
+        summary.favoritesAdded > 0;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(summary.headline, style: theme.textTheme.titleLarge),
+                      const SizedBox(height: 4),
+                      Text(summary.description, style: theme.textTheme.bodyMedium),
+                    ],
+                  ),
+                ),
+                if (summary.lastActivityAt != null)
+                  _InfoPill(
+                    label: 'Updated ${_formatRetentionDate(summary.lastActivityAt!)}',
+                  ),
+              ],
+            ),
+            if (summary.topAudiobookTitle != null) ...[
+              const SizedBox(height: 16),
+              Text('Top title', style: theme.textTheme.labelLarge),
+              const SizedBox(height: 4),
+              Text(summary.topAudiobookTitle!, style: theme.textTheme.titleMedium),
+              if (summary.topAuthorName != null) ...[
+                const SizedBox(height: 2),
+                Text(summary.topAuthorName!, style: theme.textTheme.bodyMedium),
+              ],
+            ],
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InfoPill(label: '${summary.activeDays} active days'),
+                _InfoPill(label: '${summary.listeningSessions} sessions'),
+                _InfoPill(label: '${summary.bookmarksCreated} bookmarks'),
+                _InfoPill(label: '${summary.notesCreated} notes'),
+                _InfoPill(label: '${summary.favoritesAdded} favorites'),
+              ],
+            ),
+            if (!hasActivity) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Start listening, bookmarking, or saving favorites to populate this summary.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
           ],
         ),
       ),
@@ -1930,6 +2225,16 @@ String _formatPosition(int milliseconds) {
   return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
 }
 
+String _formatRetentionDate(DateTime dateTime) {
+  final local = dateTime.toLocal();
+  return '${local.day}/${local.month}/${local.year}';
+}
+
+String _formatNotificationDate(DateTime dateTime) {
+  final local = dateTime.toLocal();
+  return '${local.day}/${local.month}';
+}
+
 void _openDetail(
   BuildContext context, {
   required String audiobookId,
@@ -1951,6 +2256,49 @@ void _openDetail(
         audiobookId: audiobookId,
       ),
     ),
+  );
+}
+
+void _openNotificationReminder(
+  BuildContext context,
+  NotificationResumeReminder reminder,
+) {
+  unawaited(
+    AppScope.of(context).trackAnalyticsEvent(
+      'notification_resume_clicked',
+      payload: {
+        'audiobookId': reminder.audiobookId,
+        'chapterId': reminder.chapterId,
+        'progressMs': reminder.progressMs,
+      },
+    ),
+  );
+  _openPlayer(
+    context,
+    audiobookId: reminder.audiobookId,
+    chapterId: reminder.chapterId,
+    positionMs: reminder.progressMs,
+  );
+}
+
+void _openRetentionDetail(
+  BuildContext context,
+  RetentionRecommendation recommendation,
+) {
+  unawaited(
+    AppScope.of(context).trackAnalyticsEvent(
+      'retention_recommendation_clicked',
+      payload: {
+        'audiobookId': recommendation.item.id,
+        'reasonType': recommendation.reasonType,
+        'reason': recommendation.reason,
+      },
+    ),
+  );
+  _openDetail(
+    context,
+    audiobookId: recommendation.item.id,
+    source: 'retention',
   );
 }
 

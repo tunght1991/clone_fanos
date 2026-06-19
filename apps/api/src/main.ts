@@ -18,7 +18,9 @@ import {
   EngagementService,
   createEngagementRepositoryBundle,
 } from './modules/engagement/index.js';
+import { NotificationController, NotificationService } from './modules/notification/index.js';
 import { PlaybackController, PlaybackService, createPlaybackRepositoryBundle } from './modules/playback/index.js';
+import { RetentionController, RetentionService } from './modules/retention/index.js';
 import {
   SearchController,
   SearchReindexService,
@@ -72,6 +74,18 @@ export function bootstrapApiRuntime() {
     contentRepositories,
   });
   const playbackController = new PlaybackController(playbackService);
+  const notificationService = new NotificationService({
+    contentRepositories,
+    engagementRepositories,
+    playbackRepositories,
+  });
+  const notificationController = new NotificationController(notificationService);
+  const retentionService = new RetentionService({
+    contentRepositories,
+    engagementRepositories,
+    playbackRepositories,
+  });
+  const retentionController = new RetentionController(retentionService);
   const searchRepositories = createSearchRepositoryBundle(database);
   const searchService = new SearchService({
     repositories: searchRepositories,
@@ -139,6 +153,10 @@ export function bootstrapApiRuntime() {
     playbackRepositories,
     playbackService,
     playbackController,
+    notificationService,
+    notificationController,
+    retentionService,
+    retentionController,
     searchRepositories,
     searchService,
     searchController,
